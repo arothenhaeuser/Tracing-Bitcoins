@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace fd.Coins.Core
+namespace fd.Coins.Core.NetworkConnector
 {
     public interface IRepository<T>
     {

@@ -1,13 +1,34 @@
-﻿using MySql.Data.MySqlClient;
+﻿using Dapper;
+using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.Data;
 
-namespace fd.Coins.Core
+namespace fd.Coins.Core.NetworkConnector
 {
     public abstract class Repository<T> : IRepository<T>
     {
         protected readonly string _connectionString;
         protected readonly string _table;
+
+        public int Count
+        {
+            get
+            {
+                using (var conn = Connection)
+                {
+                    try
+                    {
+                        var sql = $"SELECT count(*) from {_table};";
+                        return conn.ExecuteScalar<int>(sql);
+                    }
+                    catch (Exception e)
+                    {
+                        return -1;
+                    }
+                }
+            }
+        }
 
         protected IDbConnection Connection
         {

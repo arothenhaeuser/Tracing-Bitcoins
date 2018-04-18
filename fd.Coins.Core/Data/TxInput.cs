@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace fd.Coins.Core
+namespace fd.Coins.Core.NetworkConnector
 {
     public class TxInput
     {
@@ -14,9 +14,9 @@ namespace fd.Coins.Core
                 SourceAddress = components[1];
                 Amount = long.Parse(components[2]);
             }
-            catch(Exception e)
+            catch
             {
-                throw new ArgumentException($"The string supplied is invalid. ({prevOut})");
+                throw new ArgumentException("The string supplied is invalid.");
             }
         }
         public TxInput(string hash, string sourceAddress, long amount)

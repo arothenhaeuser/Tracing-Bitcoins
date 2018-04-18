@@ -1,26 +1,26 @@
 ﻿using Microsoft.Isam.Esent.Collections.Generic;
 using System.Collections.Generic;
 
-namespace fd.Coins
+namespace fd.Coins.Core.NetworkConnector
 {
-    public class DatabaseConnectionProvider
+    public class KeyValueStoreProvider
     {
-        private static DatabaseConnectionProvider _instance;
+        private static KeyValueStoreProvider _instance;
 
         private Dictionary<string, PersistentDictionary<string, string>> _databases;
 
-        private DatabaseConnectionProvider()
+        private KeyValueStoreProvider()
         {
             _databases = new Dictionary<string, PersistentDictionary<string, string>>();
         }
 
-        public static DatabaseConnectionProvider Instance
+        public static KeyValueStoreProvider Instance
         {
             get
             {
                 if (_instance == null)
                 {
-                    _instance = new DatabaseConnectionProvider();
+                    _instance = new KeyValueStoreProvider();
                 }
                 return _instance;
             }
@@ -29,7 +29,7 @@ namespace fd.Coins
         public PersistentDictionary<string, string> GetDatabase(string name)
         {
             PersistentDictionary<string, string> dict;
-            if (_databases.TryGetValue(name, out dict))
+            if(_databases.TryGetValue(name, out dict))
             {
                 return dict;
             }

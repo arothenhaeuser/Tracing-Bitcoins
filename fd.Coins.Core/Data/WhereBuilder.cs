@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace fd.Coins.Core
+namespace fd.Coins.Core.NetworkConnector
 {
     /// <summary>
     /// Source: http://ryanohs.com

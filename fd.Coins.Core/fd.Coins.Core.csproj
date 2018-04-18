@@ -67,8 +67,8 @@
       <HintPath>..\packages\MySql.Data.6.10.6\lib\net452\MySql.Data.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="NBitcoin, Version=4.0.0.65, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\NBitcoin.4.0.0.65\lib\net461\NBitcoin.dll</HintPath>
+    <Reference Include="NBitcoin, Version=4.1.0.13, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\NBitcoin.4.1.0.13\lib\net461\NBitcoin.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -124,7 +124,6 @@
     <Compile Include="DatabaseConnectionProvider.cs" />
     <Compile Include="InPoint.cs" />
     <Compile Include="MyTestClass2.cs" />
-    <Compile Include="PrimaryKey.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="MyTestClass.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

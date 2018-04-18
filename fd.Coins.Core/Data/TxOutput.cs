@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace fd.Coins.Core
+namespace fd.Coins.Core.NetworkConnector
 {
     public class TxOutput
     {

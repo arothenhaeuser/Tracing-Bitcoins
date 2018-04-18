@@ -1,24 +1,29 @@
 ﻿using NBitcoin;
 using NBitcoin.Protocol;
 using NBitcoin.Protocol.Behaviors;
-using NBitcoin.SPV;
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Coins.Core
+namespace fd.Coins.Core.NetworkConnector
 {
+    /// <summary>
+    /// Handles the connection to the Bitcoin network.
+    /// </summary>
     public class BitcoinNetworkConnector
     {
+        // Parameters describing the network connection.
         private NodeConnectionParameters _connectionParameters;
-
+        // The connected peers.
         private NodesGroup _peers;
-
+        // Set to true, if you want to dismiss all connections.
         private bool _disposed;
-
+        // Lock used for file access.
         private object _saving => new object();
-
+        /// <summary>
+        /// The local blockchain instance (without transaction data).
+        /// </summary>
         public ConcurrentChain BlockChain
         {
             get
@@ -26,10 +31,17 @@ namespace Coins.Core
                 return GetChain();
             }
         }
-
+        /// <summary>
+        /// The height of the local blockchain instance.
+        /// </summary>
         public int CurrentHeight { get; private set; }
+        /// <summary>
+        /// The number of connected peers.
+        /// </summary>
         public int ConnectedNodes { get; private set; }
-
+        /// <summary>
+        /// Starts and manages a connection to multiple peers in the Bitcoin network.
+        /// </summary>
         public void Connect()
         {
             var parameters = new NodeConnectionParameters();
@@ -48,7 +60,12 @@ namespace Coins.Core
             PeriodicReconnect();
             PeriodicUpdate();
         }
-
+        /// <summary>
+        /// Get the hashes of a range of blocks.
+        /// </summary>
+        /// <param name="from">Height of first block in range.</param>
+        /// <param name="to">Height of last block in range.</param>
+        /// <returns>Array of block hashes</returns>
         public uint256[] GetHashes(int from, int to)
         {
             if (from > to)
@@ -63,7 +80,9 @@ namespace Coins.Core
                 .Select(x => x.HashBlock)
                 .ToArray();
         }
-
+        /// <summary>
+        /// Periodically updates CurrentHeight and ConnectedNodes.
+        /// </summary>
         private async void PeriodicUpdate()
         {
             while (!_disposed)
@@ -73,7 +92,9 @@ namespace Coins.Core
                 await Task.Delay(2000);
             }
         }
-
+        /// <summary>
+        /// Periodically establishes new peer connections.
+        /// </summary>
         private async void PeriodicReconnect()
         {
             while (!_disposed)
@@ -82,7 +103,9 @@ namespace Coins.Core
                 await Task.Delay(TimeSpan.FromMinutes(10));
             }
         }
-
+        /// <summary>
+        /// Periodically saves all connection data.
+        /// </summary>
         private async void PeriodicSave()
         {
             while (!_disposed)
@@ -91,19 +114,25 @@ namespace Coins.Core
                 await Task.Delay(30000);
             }
         }
-
+        /// <summary>
+        /// Disconnects from the network and saves all connection data.
+        /// </summary>
         public void Disconnect()
         {
             Save();
             _peers.Disconnect();
             _disposed = true;
         }
-
+        /// <summary>
+        /// Reconnects to the network.
+        /// </summary>
         private void Reconnect()
         {
             _peers.Purge("Reconnect");
         }
-
+        /// <summary>
+        /// Saves all relevant connection info to file.
+        /// </summary>
         private void Save()
         {
             try
@@ -126,19 +155,22 @@ namespace Coins.Core
                 Console.WriteLine(e);
             }
         }
-
+        /// <summary>
+        /// Get the local blockchain instance.
+        /// </summary>
+        /// <returns></returns>
         private ConcurrentChain GetChain()
         {
             if (_connectionParameters != null)
             {
                 return _connectionParameters.TemplateBehaviors.Find<ChainBehavior>().Chain;
             }
-            var chain = new ConcurrentChain(Network.Main);
+            var chain = new ConcurrentChain();
             try
             {
                 lock (_saving)
                 {
-                    chain.Load(File.ReadAllBytes(ChainFile()));
+                    chain.Load(File.ReadAllBytes(ChainFile()), Network.Main);
                 }
             }
             catch
@@ -146,40 +178,18 @@ namespace Coins.Core
             }
             return chain;
         }
-
-        private Tracker GetTracker()
-        {
-            if (_connectionParameters != null)
-            {
-                return _connectionParameters.TemplateBehaviors.Find<TrackerBehavior>().Tracker;
-            }
-            try
-            {
-                lock (_saving)
-                {
-                    using (var fs = File.OpenRead(TrackerFile()))
-                    {
-                        return Tracker.Load(fs);
-                    }
-                }
-            }
-            catch
-            {
-            }
-            return new Tracker();
-        }
-
-        private string TrackerFile()
-        {
-            return "tracker.dat";
-        }
-
+        /// <summary>
+        /// The file name of the local blockchain instance.
+        /// </summary>
+        /// <returns></returns>
         private static string ChainFile()
         {
             return "chain.dat";
         }
-
-
+        /// <summary>
+        /// Get the address manager for peer connections.
+        /// </summary>
+        /// <returns>The address manager</returns>
         private AddressManager GetAddressManager()
         {
             if (_connectionParameters != null)
@@ -198,7 +208,10 @@ namespace Coins.Core
                 return new AddressManager();
             }
         }
-
+        /// <summary>
+        /// The file name of the address manager.
+        /// </summary>
+        /// <returns></returns>
         private static string AddrmanFile()
         {
             return "addrman.dat";

@@ -2,20 +2,24 @@
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 
-namespace fd.Coins.Core
+namespace fd.Coins.Core.NetworkConnector
 {
     public class TransactionRepository : Repository<TransactionEntity>
     {
-        public static readonly string[] KNOWN_DUPLICATE_TRANSACTION_HASHES = new string[]
+        // these two exist in the blockchain two times
+        public static string[] KNOWN_DUPLICATE_TRANSACTION_HASHES
         {
-            "d5d27987d2a3dfc724e359870c6644b40e497bdc0589a033220fe15429d88599",
-            "e3bf3d07d4b0375638d5f1db5255fe07ba2c4cb067cd81b84ee974b6585fb468"
-        };
+            get
+            {
+                return new string[]
+                {
+                    "d5d27987d2a3dfc724e359870c6644b40e497bdc0589a033220fe15429d88599",
+                    "e3bf3d07d4b0375638d5f1db5255fe07ba2c4cb067cd81b84ee974b6585fb468"
+                };
+            }
+        }
 
         public TransactionRepository(string connectionString, string table) : base(connectionString, table) { }
 
@@ -26,16 +30,22 @@ namespace fd.Coins.Core
                 try
                 {
                     var sql = $"INSERT INTO {_table} (hash, blockTime, payload) VALUES (@hash, @blockTime, @payload);";
-                    conn.Execute(sql, new { item.Hash, item.BlockTime, item.Payload });
-
                     var sql2 = $"INSERT INTO {_table}_inputs (hash, sourceAddress, amount) VALUES (@hash, @sourceAddress, @amount);";
-                    conn.Execute(sql2, item.Inputs.Select(x => new { x.Hash, x.SourceAddress, x.Amount }));
-
                     var sql3 = $"INSERT INTO {_table}_outputs (hash, targetAddress, amount) VALUES (@hash, @targetAddress, @amount);";
-                    conn.Execute(sql3, item.Outputs.Select(x => new { x.Hash, x.TargetAddress, x.Amount }));
+                    using (var trans = conn.BeginTransaction())
+                    {
+                        conn.Execute(sql, new { item.Hash, item.BlockTime, item.Payload });
+                        conn.Execute(sql2, item.Inputs.Select(x => new { x.Hash, x.SourceAddress, x.Amount }));
+                        conn.Execute(sql3, item.Outputs.Select(x => new { x.Hash, x.TargetAddress, x.Amount }));
+                        trans.Commit();
+                    }
                 }
-                catch (Exception e)
+                catch (MySqlException e)
                 {
+                    if (e.Number == 1062 && KNOWN_DUPLICATE_TRANSACTION_HASHES.Any(x => e.Message.Contains(x)))
+                    {
+                        return true;
+                    }
                     return false;
                 }
                 return true;
@@ -57,8 +67,8 @@ namespace fd.Coins.Core
                     using (var trans = conn.BeginTransaction())
                     {
                         conn.Execute(sql, items.Select(x => new { x.Hash, x.BlockTime, x.Payload }));
-                        conn.Execute(sql2, items.SelectMany(item => item.Inputs.Select(x => new { x.Hash, x.SourceAddress, x.Amount })));
-                        conn.Execute(sql3, items.SelectMany(item => item.Outputs.Select(x => new { x.Hash, x.TargetAddress, x.Amount })));
+                        conn.Execute(sql2, items.SelectMany(x => x.Inputs.Select(y => new { y.Hash, y.SourceAddress, y.Amount })));
+                        conn.Execute(sql2, items.SelectMany(x => x.Outputs.Select(y => new { y.Hash, y.TargetAddress, y.Amount })));
                         trans.Commit();
                     }
                 }
@@ -80,7 +90,7 @@ namespace fd.Coins.Core
             {
                 try
                 {
-                    var sql = $"CREATE TABLE IF NOT EXISTS {_table} (hash varchar(64) PRIMARY KEY, blockTime timestamp, payload mediumblob);"
+                    var sql = $"CREATE TABLE IF NOT EXISTS {_table} (hash varchar(64) PRIMARY KEY, blockTime timestamp, payload blob);"
                         + $"CREATE TABLE IF NOT EXISTS {_table}_inputs (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, hash varchar(64), sourceAddress varchar(255), amount bigint, FOREIGN KEY (hash) REFERENCES {_table}(hash));"
                         + $"CREATE TABLE IF NOT EXISTS {_table}_outputs (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, hash varchar(64), targetAddress varchar(255), amount bigint, FOREIGN KEY (hash) REFERENCES {_table}(hash));"
                         + "SET time_zone='+00:00';";
@@ -131,21 +141,6 @@ namespace fd.Coins.Core
                         txEntity.Outputs = result.Read<TxOutput>().ToList();
                     }
                     return txEntity;
-                    //var sql = $"SELECT * FROM {_table} AS tx INNER JOIN {_table}_inputs AS input ON tx.hash = input.hash INNER JOIN {_table}_outputs AS output ON tx.hash = output.hash;";
-                    //var item = conn.Query<TransactionEntity, TxInput, TxOutput, TransactionEntity>(sql, (txEntity, txInput, txOutput) =>
-                    //{
-                    //    var result = txEntity;
-
-                    //    result.Inputs = new List<TxInput>();
-                    //    result.Inputs.Add(txInput);
-
-                    //    result.Outputs = new List<TxOutput>();
-                    //    result.Outputs.Add(txOutput);
-
-                    //    return result;
-                    //}, splitOn: hash, hash).SingleOrDefault();
-                    //return item;
-
                 }
                 catch (Exception e)
                 {

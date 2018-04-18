@@ -105,7 +105,7 @@ namespace fd.Coins.Core.NetworkConnector
 
         private bool ProcessNewBlock(Block block)
         {
-            var success = false;
+            var success = true;
             var blockTime = block.Header.BlockTime.ToString("yyyy-MM-dd hh:mm:ss");
             // add outputs to dict
             foreach (var tx in block.Transactions)

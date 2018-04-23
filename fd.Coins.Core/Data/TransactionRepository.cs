@@ -91,8 +91,8 @@ namespace fd.Coins.Core.NetworkConnector
                 try
                 {
                     var sql = $"CREATE TABLE IF NOT EXISTS {_table} (hash varchar(64) PRIMARY KEY, blockTime timestamp, payload mediumblob);"
-                        + $"CREATE TABLE IF NOT EXISTS {_table}_inputs (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, hash varchar(64), sourceAddress varchar(255), amount bigint, FOREIGN KEY (hash) REFERENCES {_table}(hash));"
-                        + $"CREATE TABLE IF NOT EXISTS {_table}_outputs (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, hash varchar(64), targetAddress varchar(255), amount bigint, FOREIGN KEY (hash) REFERENCES {_table}(hash));"
+                        + $"CREATE TABLE IF NOT EXISTS {_table}_inputs (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, hash varchar(64), sourceAddress varchar(255), amount bigint, FOREIGN KEY (hash) REFERENCES {_table}(hash) ON DELETE CASCADE);"
+                        + $"CREATE TABLE IF NOT EXISTS {_table}_outputs (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, hash varchar(64), targetAddress varchar(255), amount bigint, FOREIGN KEY (hash) REFERENCES {_table}(hash) ON DELETE CASCADE);"
                         + "SET time_zone='+00:00';";
                     conn.Execute(sql);
                 }

@@ -10,29 +10,32 @@ namespace fd.Coins.Core.NetworkConnector
             try
             {
                 var components = s.Split(';');
-                Hash = components[0];
-                TargetAddress = components[1];
-                Amount = long.Parse(components[2]);
+                Position = int.Parse(components[0]);
+                Hash = components[1];
+                TargetAddress = components[2];
+                Amount = long.Parse(components[3]);
             }
             catch
             {
                 throw new ArgumentException("The string supplied is invalid.");
             }
         }
-        public TxOutput(string hash, string targetAddress, long amount)
+        public TxOutput(int position, string hash, string targetAddress, long amount)
         {
+            Position = position;
             Hash = hash;
             TargetAddress = targetAddress;
             Amount = amount;
         }
 
+        public int Position { get; set; }
         public string Hash { get; set; }
         public string TargetAddress { get; set; }
         public long Amount { get; set; }
 
         public override string ToString()
         {
-            return $"{Hash};{TargetAddress};{Amount}";
+            return $"{Position};{Hash};{TargetAddress};{Amount}";
         }
     }
 }

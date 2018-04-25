@@ -4,6 +4,7 @@ using NBitcoin.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -117,20 +118,22 @@ namespace fd.Coins.Core.NetworkConnector
                         _utxos.Add(
                         $"{tx.GetHash().ToString()},{i.ToString()}",
                         new TxOutput(
+                            i,
                             tx.GetHash().ToString(),
                             GetAddress(tx.Outputs[i].ScriptPubKey),
                             tx.Outputs[i].Value.Satoshi)
                             .ToString());
                     }
-                    catch (ArgumentException ae)
+                    catch (Exception e)
                     {
-                        if (!KNOWN_DUPLICATE_TRANSACTION_HASHES.Contains($"{tx.GetHash().ToString()}"))
+                        if (!(e is ArgumentException))
                         {
-                            success = success && false;
+                            success = false;
                         }
                     }
                 }
             }
+
             // adding to db
             success = Transactions.AddRange(
                 block.Transactions.Select(
@@ -139,15 +142,25 @@ namespace fd.Coins.Core.NetworkConnector
                         blockTime,
                         ConvertInputs(x),
                         x.Outputs.Select(
-                            z => new TxOutput(
-                                x.GetHash().ToString(),
-                                GetAddress(z.ScriptPubKey),
-                                z.Value.Satoshi)),
-                        x.ToBytes()))) && success;
+                            (z, i) => new TxOutput()
+                            {
+                                Amount = z.Value.Satoshi,
+                                Hash = x.GetHash().ToString(),
+                                Position = i,
+                                TargetAddress = GetAddress(z.ScriptPubKey)
+                            }),
+                        x.ToBytes())).ToList()) && success;
             //clean up UTXOs
-            foreach (var key in block.Transactions.Where(x => !x.IsCoinBase).SelectMany(x => x.Inputs.Select(y => $"{y.PrevOut.Hash},{y.PrevOut.N}")))
+            foreach (var key in block.Transactions.Where(x => !x.IsCoinBase).SelectMany(x => x.Inputs.Select(y => $"{y.PrevOut.Hash},{y.PrevOut.N}")).ToList())
             {
-                _utxos.Remove(key);
+                try
+                {
+                    _utxos.Remove(key);
+                }
+                catch (Exception e)
+                {
+                    success = false;
+                }
             }
             return success;
         }
@@ -168,11 +181,11 @@ namespace fd.Coins.Core.NetworkConnector
             var inputs = tx.Inputs;
             if (tx.IsCoinBase)
             {
-                return new List<TxInput>() { new TxInput(tx.GetHash().ToString(), "coinbase", tx.TotalOut) };
+                return new List<TxInput>() { new TxInput(0, tx.GetHash().ToString(), "coinbase", tx.TotalOut) };
             }
             else
             {
-                return inputs.Select(x => new TxInput(tx.GetHash().ToString(), _utxos[$"{x.PrevOut.Hash},{x.PrevOut.N}"])); // lookup outputs pointing towards me
+                return inputs.Select((x, i) => new TxInput(tx.GetHash().ToString(), i, _utxos[$"{x.PrevOut.Hash},{x.PrevOut.N}"])); // lookup outputs pointing towards me
             }
         }
 

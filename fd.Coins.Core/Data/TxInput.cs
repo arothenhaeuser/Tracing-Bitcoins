@@ -5,34 +5,37 @@ namespace fd.Coins.Core.NetworkConnector
     public class TxInput
     {
         public TxInput() { }
-        public TxInput(string hash, string prevOut)
+        public TxInput(string hash, int position, string prevOut)
         {
             try
             {
                 var components = prevOut.Split(';');
                 Hash = hash;
-                SourceAddress = components[1];
-                Amount = long.Parse(components[2]);
+                Position = position;
+                SourceAddress = components[2];
+                Amount = long.Parse(components[3]);
             }
             catch
             {
                 throw new ArgumentException("The string supplied is invalid.");
             }
         }
-        public TxInput(string hash, string sourceAddress, long amount)
+        public TxInput(int position, string hash, string sourceAddress, long amount)
         {
+            Position = position;
             Hash = hash;
             SourceAddress = sourceAddress;
             Amount = amount;
         }
 
+        public int Position { get; set; }
         public string Hash { get; set; }
         public string SourceAddress { get; set; }
         public long Amount { get; set; }
 
         public override string ToString()
         {
-            return $"{Hash};{SourceAddress};{Amount}";
+            return $"{Position};{Hash};{SourceAddress};{Amount}";
         }
     }
 }

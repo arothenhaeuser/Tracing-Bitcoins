@@ -1,7 +1,7 @@
 ﻿using fd.Coins.Core.NetworkConnector;
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace fd.Coins.Cli
 {
@@ -10,9 +10,20 @@ namespace fd.Coins.Cli
         static void Main(string[] args)
         {
             var provider = new BlockProvider();
-            provider.Start();
-            Console.Read();
+            Task.Run(() =>
+            {
+                provider.Start();
+            });
+
+            while(Console.ReadLine() != "x")
+            {
+                Thread.Sleep(1000);
+            }
+
             provider.Stop();
+            Console.WriteLine("Stopped.");
+            Thread.Sleep(1500);
+            
 
             //var utxos = KeyValueStoreProvider.Instance.GetDatabase("UTXOs");
             //utxos.Add("542c741426f2ed6adcd4bc23f0621f2a0445ae0db9398df193abf08440d2dd64,0", new TxOutput(

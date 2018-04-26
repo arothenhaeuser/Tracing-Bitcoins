@@ -7,6 +7,7 @@ using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace fd.Coins.Core.NetworkConnector
@@ -68,8 +69,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 Console.Clear();
                 Console.WriteLine(_height);
-                Save();
-                await Task.Delay(2000);
+                await Task.Delay(5000);
             }
             Console.Clear();
         }
@@ -87,17 +87,24 @@ namespace fd.Coins.Core.NetworkConnector
                         .Skip(_height)
                         .Take(50000)
                         .Select(x => x.HashBlock);
-
-                    foreach (var block in _localClient.GetBlocks(hashes))
+                    try
                     {
-                        if (ProcessNewBlock(block))
+                        foreach (var block in _localClient.GetBlocks(hashes))
                         {
-                            _height++;
+                            if (ProcessNewBlock(block))
+                            {
+                                _height++;
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException($"Processing of block failed. ({block.GetHash()})");
+                            }
                         }
-                        else
-                        {
-                            throw new InvalidOperationException($"Processing of block failed. ({block.GetHash()})");
-                        }
+                    }
+                    catch(Exception e)
+                    {
+                        File.AppendAllText("err.log", DateTime.Now + ":\t" + e.Message + "\n");
+                        return;
                     }
                 }
                 await Task.Delay(60000);
@@ -129,6 +136,7 @@ namespace fd.Coins.Core.NetworkConnector
                         if (!(e is ArgumentException))
                         {
                             success = false;
+                            File.AppendAllText("err.log", DateTime.Now + ":\t" + e.Message + "\n");
                         }
                     }
                 }
@@ -160,6 +168,7 @@ namespace fd.Coins.Core.NetworkConnector
                 catch (Exception e)
                 {
                     success = false;
+                    File.AppendAllText("err.log", DateTime.Now + ":\t" + e.Message + "\n");
                 }
             }
             return success;
@@ -209,6 +218,7 @@ namespace fd.Coins.Core.NetworkConnector
         private void Save()
         {
             File.WriteAllText("state.log", _height.ToString());
+            _utxos.Flush();
         }
 
         public void Start()

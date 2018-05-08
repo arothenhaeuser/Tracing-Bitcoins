@@ -4,7 +4,7 @@ namespace fd.Coins.Core.NetworkConnector
 {
     public class TxInput
     {
-        public TxInput() { }
+        //public TxInput() { }
         public TxInput(string hash, int position, string prevOut)
         {
             try

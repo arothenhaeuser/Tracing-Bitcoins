@@ -21,7 +21,7 @@ namespace fd.Coins.Core.NetworkConnector
                     var sql3 = $"INSERT INTO {_table}_outputs (position, hash, targetAddress, amount) VALUES (@position, @hash, @targetAddress, @amount);";
                     using (var trans = conn.BeginTransaction())
                     {
-                        conn.Execute(sql, new { item.Hash, item.BlockTime, item.Payload });
+                        conn.Execute(sql, new { item.Hash, item.BlockTime });
                         conn.Execute(sql2, item.Inputs.Select(x => new { x.Position, x.Hash, x.SourceAddress, x.Amount }));
                         conn.Execute(sql3, item.Outputs.Select(x => new { x.Position, x.Hash, x.TargetAddress, x.Amount }));
                         trans.Commit();
@@ -53,7 +53,7 @@ namespace fd.Coins.Core.NetworkConnector
 
                     using (var trans = conn.BeginTransaction())
                     {
-                        conn.Execute(sql, items.Select(x => new { x.Hash, x.BlockTime, x.Payload }));
+                        conn.Execute(sql, items.Select(x => new { x.Hash, x.BlockTime }));
                         conn.Execute(sql2, items.SelectMany(x => x.Inputs.Select(y => new { y.Position, y.Hash, y.SourceAddress, y.Amount })));
                         conn.Execute(sql3, items.SelectMany(x => x.Outputs.Select(y => new { y.Position, y.Hash, y.TargetAddress, y.Amount })));
                         trans.Commit();
@@ -99,15 +99,28 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 try
                 {
-                    var sql = $"SELECT * FROM {_table};SELECT * FROM {_table}_inputs;SELECT * FROM {_table}_outputs;";
-                    var result = conn.QueryMultiple(sql);
-                    var txEntities = result.Read<TransactionEntity>();
-                    foreach (var txEntity in txEntities)
+                    //var sql = $"SELECT * FROM {_table};SELECT * FROM {_table}_inputs;SELECT * FROM {_table}_outputs;";
+                    var sql2 = $"SELECT tx.hash, tx.blockTime, input.position, input.hash, input.sourceAddress, input.amount, output.position, output.hash, output.targetAddress, output.amount FROM {_table} tx JOIN {_table}_inputs input ON tx.hash = input.hash JOIN {_table}_outputs output ON tx.hash = output.hash;";
+                    var lookup = new Dictionary<string, TransactionEntity>();
+                    return conn.Query<TransactionEntity, TxInput, TxOutput, TransactionEntity>(sql2, (tx, input, output) =>
                     {
-                        txEntity.Inputs.AddRange(result.Read<TxInput>().Where(x => x.Hash == txEntity.Hash));
-                        txEntity.Outputs.AddRange(result.Read<TxOutput>().Where(x => x.Hash == txEntity.Hash));
-                    }
-                    return txEntities;
+                        TransactionEntity t;
+                        if (!lookup.TryGetValue(tx.Hash, out t))
+                        {
+                            lookup.Add(tx.Hash, t = tx);
+                        }
+                        if (t.Inputs == null)
+                        {
+                            t.Inputs = new List<TxInput>();
+                        }
+                        t.Inputs.Add(input);
+                        if (t.Outputs == null)
+                        {
+                            t.Outputs = new List<TxOutput>();
+                        }
+                        tx.Outputs.Add(output);
+                        return t;
+                    }, splitOn:"position,position", buffered: false);
                 }
                 catch (Exception e)
                 {
@@ -122,15 +135,29 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 try
                 {
-                    var sql = $"SELECT * FROM {_table} WHERE hash = @hash;SELECT * FROM {_table}_inputs WHERE hash = @hash;SELECT * FROM {_table}_outputs WHERE hash = @hash;";
-                    var result = conn.QueryMultiple(sql, new { hash });
-                    var txEntity = result.Read<TransactionEntity>().SingleOrDefault();
-                    if (txEntity != default(TransactionEntity))
+                    var sql = $"SELECT tx.hash, tx.blockTime, input.position, input.hash, input.sourceAddress, input.amount, output.position, output.hash, output.targetAddress, output.amount FROM {_table} tx JOIN {_table}_inputs input ON tx.hash = input.hash JOIN {_table}_outputs output ON tx.hash = output.hash WHERE tx.hash=@hash;";
+                    var lookup = new Dictionary<string, TransactionEntity>();
+                    return conn.Query<TransactionEntity, TxInput, TxOutput, TransactionEntity>(sql, (tx, input, output) =>
                     {
-                        txEntity.Inputs = result.Read<TxInput>().ToList();
-                        txEntity.Outputs = result.Read<TxOutput>().ToList();
-                    }
-                    return txEntity;
+                        TransactionEntity t;
+                        if(!lookup.TryGetValue(tx.Hash, out t))
+                        {
+                            lookup.Add(tx.Hash, t = tx);
+                        }
+                        if(t.Inputs == null)
+                        {
+                            t.Inputs = new List<TxInput>();
+                        }
+                        t.Inputs.Add(input);
+                        if (t.Outputs == null)
+                        {
+                            t.Outputs = new List<TxOutput>();
+                        }
+                        tx.Outputs.Add(output);
+                        return t;
+                    },
+                    new { hash },
+                    splitOn: "position,position", buffered: false).FirstOrDefault();
                 }
                 catch (Exception e)
                 {
@@ -168,7 +195,7 @@ namespace fd.Coins.Core.NetworkConnector
                     conn.Open();
                     var trans = conn.BeginTransaction();
 
-                    conn.Execute(sql, items.Select(x => new { x.Hash, x.BlockTime, x.Payload }), transaction: trans, commandTimeout: 30);
+                    conn.Execute(sql, items.Select(x => new { x.Hash, x.BlockTime }), transaction: trans, commandTimeout: 30);
                     conn.Execute(sql1, items.Select(x => new { x.Hash }), transaction: trans, commandTimeout: 30);
 
                     foreach (var item in items)

@@ -100,7 +100,7 @@ namespace fd.Coins.Core.NetworkConnector
         private bool ProcessNewBlock(Block block)
         {
             var success = true;
-            var blockTime = block.Header.BlockTime.ToString("yyyy-MM-dd hh:mm:ss");
+            var blockTime = block.Header.BlockTime.LocalDateTime;
             // add outputs to dict
             foreach (var tx in block.Transactions)
             {
@@ -142,8 +142,7 @@ namespace fd.Coins.Core.NetworkConnector
                                 Hash = x.GetHash().ToString(),
                                 Position = i,
                                 TargetAddress = GetAddress(z.ScriptPubKey)
-                            }),
-                        x.ToBytes())).ToList()) && success;
+                            }))).ToList()) && success;
             //clean up UTXOs
             foreach (var key in block.Transactions.Where(x => !x.IsCoinBase).SelectMany(x => x.Inputs.Select(y => $"{y.PrevOut.Hash},{y.PrevOut.N}")).ToList())
             {

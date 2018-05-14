@@ -47,18 +47,6 @@ namespace fd.Coins.Cli
                 return db.CountRecords;
             }
         }
-        //public static long CreateTransactionGraph(string hostname, int port, string user, string password, string database, IEnumerable<TransactionEntity> txs)
-        //{
-        //    using(var db = new ODatabase(hostname, port, database, ODatabaseType.Graph, user, password))
-        //    {
-        //        //create one node per transaction
-        //        foreach(var tx in txs)
-        //        {
-        //            var target = db.Create.Vertex<OVertex>().Set("hash", tx.Hash).Set("blockTime", tx.BlockTime).Run();
-        //            tx.Inputs.ForEach(x => db.Create.Edge<OEdge>().From(db.Select().From("V").Where("hash").Equals(x.)
-        //        }
-        //    }
-        //}
         static void Main(string[] args)
         {
             Console.WriteLine("(L)oad or (G)raph?");

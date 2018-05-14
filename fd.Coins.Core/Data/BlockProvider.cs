@@ -1,6 +1,7 @@
 ﻿using Microsoft.Isam.Esent.Collections.Generic;
 using NBitcoin;
 using NBitcoin.Protocol;
+using Orient.Client;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -78,7 +79,7 @@ namespace fd.Coins.Core.NetworkConnector
                     {
                         foreach (var block in _localClient.GetBlocks(hashes))
                         {
-                            if (ProcessNewBlock(block))
+                            if (ProcessBlock(block))
                             {
                                 _height++;
                             }
@@ -88,7 +89,7 @@ namespace fd.Coins.Core.NetworkConnector
                             }
                         }
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         File.AppendAllText("err.log", DateTime.Now + ":\t" + e.Message + "\n");
                         Save();
@@ -98,7 +99,66 @@ namespace fd.Coins.Core.NetworkConnector
                 await Task.Delay(60000);
             }
         }
-
+        private bool ProcessBlock(Block block)
+        {
+            var blockTime = block.Header.BlockTime.LocalDateTime;
+            try
+            {
+                foreach (var tx in block.Transactions)
+                {
+                    AddVertices(tx, blockTime);
+                }
+                foreach (var tx in block.Transactions)
+                {
+                    AddEdges(tx);
+                }
+            }
+            catch(Exception e)
+            {
+                return false;
+            }
+            return true;
+        }
+        private void AddVertices(Transaction tx, DateTime blockTime)
+        {
+            using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+            {
+                var coinbase = db.Create.Vertex<OVertex>().Set("hash", "coinbase").Run();
+                var current = db.Create.Vertex<OVertex>().Set("hash", tx.GetHash().ToString()).Set("blockTime", DateTime.Now).Run();
+            }
+        }
+        private void AddEdges(Transaction tx)
+        {
+            using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+            {
+                for (var i = 0; i < tx.Inputs.Count; i++)
+                {
+                    db.Create.Edge<OEdge>()
+                        .From(db.Select().From("V")
+                            .Where("hash").Equals(tx.Inputs[i].PrevOut.Hash.ToString())
+                                .ToList<OVertex>().FirstOrCoinbase("coinbase", db))
+                        .To(db.Select().From("V")
+                            .Where("hash").Equals(tx.GetHash().ToString()))
+                        .Set("tTx", tx.GetHash().ToString())
+                        .Set("sTx", tx.Inputs[i].PrevOut.Hash.ToString())
+                        .Set("sN", tx.Inputs[i].PrevOut.N)
+                        .Run();
+                }
+                for (var i = 0; i < tx.Outputs.Count; i++)
+                {
+                    var edge = db.Select().From("E")
+                        .Where("sTx").Equals(tx.GetHash().ToString())
+                        .And("sN").Equals(i)
+                        .ToList<OEdge>().FirstOrDefault();
+                    if (edge != null)
+                    {
+                        edge.SetField("tAdd", GetAddress(tx.Outputs[i].ScriptPubKey));
+                        edge.SetField("val", tx.Outputs[i].Value.Satoshi);
+                        db.Update(edge).Run();
+                    }
+                }
+            }
+        }
         private bool ProcessNewBlock(Block block)
         {
             var success = true;

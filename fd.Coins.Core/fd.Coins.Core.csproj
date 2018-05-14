@@ -71,6 +71,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Extensions.cs" />
     <Compile Include="Network\BitcoinNetworkConnector.cs" />
     <Compile Include="Data\BlockProvider.cs" />
     <Compile Include="Data\KeyValueStoreProvider.cs" />
@@ -112,6 +113,9 @@
     </PackageReference>
     <PackageReference Include="NBitcoin">
       <Version>4.1.0.11</Version>
+    </PackageReference>
+    <PackageReference Include="OrientDB-Net.binary.Innov8tive">
+      <Version>0.1.9</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

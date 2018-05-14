@@ -1,4 +1,5 @@
 ﻿using fd.Coins.Core.NetworkConnector;
+using NBitcoin;
 using Orient.Client;
 using System;
 using System.Collections.Generic;
@@ -16,16 +17,16 @@ namespace fd.Coins.Cli
         string User { get; set; }
         string Password { get; set; }
     }
+
     class Program
     {
-
         public static bool CreateDatabaseIfNotExists(string hostname, int port, string user, string password, string database)
         {
-            using(var server = new OServer(hostname, port, user, password))
+            using (var server = new OServer(hostname, port, user, password))
             {
-                if(!server.DatabaseExist(database, OStorageType.Memory))
+                if (!server.DatabaseExist(database, OStorageType.PLocal))
                 {
-                    return server.CreateDatabase(database, ODatabaseType.Graph, OStorageType.Memory);
+                    return server.CreateDatabase(database, ODatabaseType.Graph, OStorageType.PLocal);
                 }
                 else
                 {
@@ -35,7 +36,7 @@ namespace fd.Coins.Cli
         }
         public static long CreateUserGraph(string hostname, int port, string user, string password, string database, IEnumerable<TransactionEntity> txs)
         {
-            using(var db = new ODatabase(hostname, port, database, ODatabaseType.Graph, user, password))
+            using (var db = new ODatabase(hostname, port, database, ODatabaseType.Graph, user, password))
             {
                 // create nodes
                 foreach (var tx in txs)
@@ -46,13 +47,25 @@ namespace fd.Coins.Cli
                 return db.CountRecords;
             }
         }
+        //public static long CreateTransactionGraph(string hostname, int port, string user, string password, string database, IEnumerable<TransactionEntity> txs)
+        //{
+        //    using(var db = new ODatabase(hostname, port, database, ODatabaseType.Graph, user, password))
+        //    {
+        //        //create one node per transaction
+        //        foreach(var tx in txs)
+        //        {
+        //            var target = db.Create.Vertex<OVertex>().Set("hash", tx.Hash).Set("blockTime", tx.BlockTime).Run();
+        //            tx.Inputs.ForEach(x => db.Create.Edge<OEdge>().From(db.Select().From("V").Where("hash").Equals(x.)
+        //        }
+        //    }
+        //}
         static void Main(string[] args)
         {
             Console.WriteLine("(L)oad or (G)raph?");
             var decision = Console.ReadLine();
             if (decision == "G" || decision == "g")
             {
-                if(CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "usergraph"))
+                if (CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "usergraph"))
                 {
                     var transactions = new TransactionRepository(
                         ConfigurationManager.ConnectionStrings["BitcoinMySQL"].ConnectionString,

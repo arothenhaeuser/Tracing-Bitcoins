@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace fd.Coins.Core.NetworkConnector
 {
@@ -29,5 +30,10 @@ namespace fd.Coins.Core.NetworkConnector
         public DateTime BlockTime { get; set; }
         public List<TxInput> Inputs { get; set; }
         public List<TxOutput> Outputs { get; set; }
+
+        public bool IsCoinBase()
+        {
+            return Inputs.Any(x => x.SourceAddress.Equals("coinbase"));
+        }
     }
 }

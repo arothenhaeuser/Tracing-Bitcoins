@@ -11,7 +11,12 @@ namespace fd.Coins.Core
     {
         public static ODocument FirstOrCoinbase(this List<OVertex> self, string hash, ODatabase db)
         {
-            return self.FirstOrDefault() ?? db.Select().From("E").Where("hash").Equals(hash).ToList<OVertex>().First();
+            var ret = self.FirstOrDefault();
+            if(ret == null)
+            {
+                ret = db.Create.Vertex<OVertex>().Set("hash", "coinbase").Run();
+            }
+            return ret;
         }
     }
 }

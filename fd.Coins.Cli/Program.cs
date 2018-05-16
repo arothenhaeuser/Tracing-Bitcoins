@@ -20,77 +20,22 @@ namespace fd.Coins.Cli
 
     class Program
     {
-        public static bool CreateDatabaseIfNotExists(string hostname, int port, string user, string password, string database)
-        {
-            using (var server = new OServer(hostname, port, user, password))
-            {
-                if (!server.DatabaseExist(database, OStorageType.PLocal))
-                {
-                    return server.CreateDatabase(database, ODatabaseType.Graph, OStorageType.PLocal);
-                }
-                else
-                {
-                    return true;
-                }
-            }
-        }
-        public static long CreateUserGraph(string hostname, int port, string user, string password, string database, IEnumerable<TransactionEntity> txs)
-        {
-            using (var db = new ODatabase(hostname, port, database, ODatabaseType.Graph, user, password))
-            {
-                // create nodes
-                foreach (var tx in txs)
-                {
-                    tx.Inputs.ForEach(x => db.Create.Vertex<OVertex>().Set("address", x.SourceAddress).Run());
-                    tx.Outputs.ForEach(x => db.Create.Vertex<OVertex>().Set("address", x.TargetAddress).Run());
-                }
-                return db.CountRecords;
-            }
-        }
-        //public static long CreateTransactionGraph(string hostname, int port, string user, string password, string database, IEnumerable<TransactionEntity> txs)
-        //{
-        //    using(var db = new ODatabase(hostname, port, database, ODatabaseType.Graph, user, password))
-        //    {
-        //        //create one node per transaction
-        //        foreach(var tx in txs)
-        //        {
-        //            var target = db.Create.Vertex<OVertex>().Set("hash", tx.Hash).Set("blockTime", tx.BlockTime).Run();
-        //            tx.Inputs.ForEach(x => db.Create.Edge<OEdge>().From(db.Select().From("V").Where("hash").Equals(x.)
-        //        }
-        //    }
-        //}
         static void Main(string[] args)
         {
-            Console.WriteLine("(L)oad or (G)raph?");
-            var decision = Console.ReadLine();
-            if (decision == "G" || decision == "g")
+            var provider = new BlockProvider();
+            Task.Run(() =>
             {
-                if (CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "usergraph"))
-                {
-                    var transactions = new TransactionRepository(
-                        ConfigurationManager.ConnectionStrings["BitcoinMySQL"].ConnectionString,
-                        "transactions");
-                    Console.WriteLine(CreateUserGraph("localhost", 2424, "admin", "admin", "usergraph", transactions.GetAll()));
-                }
-                Console.Read();
-            }
-            else if (decision == "L" || decision == "l")
+                provider.Start();
+            });
+
+            while (Console.ReadLine() != "x")
             {
-                var provider = new BlockProvider();
-                Task.Run(() =>
-                {
-                    provider.Start();
-                });
-
-                while (Console.ReadLine() != "x")
-                {
-                    Thread.Sleep(1000);
-                }
-
-                provider.Stop();
-                Console.WriteLine("Stopped.");
-                Thread.Sleep(1500);
+                Thread.Sleep(1000);
             }
+
+            provider.Stop();
+            Console.WriteLine("Stopped.");
+            Thread.Sleep(1500);
         }
     }
 }

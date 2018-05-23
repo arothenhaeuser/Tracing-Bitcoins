@@ -9,14 +9,19 @@ namespace fd.Coins.Core
 {
     public static class Extensions
     {
-        public static ODocument FirstOrCoinbase(this List<OVertex> self, string hash, ODatabase db)
+        public static OVertex FirstOrCoinbase(this List<OVertex> self, ODatabase db, long amount)
         {
             var ret = self.FirstOrDefault();
             if(ret == null)
             {
-                ret = db.Create.Vertex<OVertex>().Set("hash", "coinbase").Run();
+                ret = db.Create.Vertex("Transaction").Set("Hash", "coinbase").Set("amount", amount).Run();
             }
             return ret;
+        }
+
+        public static bool IsCoinBase(this OVertex self)
+        {
+            return self.GetField<string>("Hash").Equals("coinbase");
         }
     }
 }

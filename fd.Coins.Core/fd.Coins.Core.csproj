@@ -103,7 +103,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Dapper">
-      <Version>1.50.4</Version>
+      <Version>1.50.5</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Database.Collections.Generic">
       <Version>1.9.4</Version>
@@ -112,7 +112,10 @@
       <Version>8.0.11</Version>
     </PackageReference>
     <PackageReference Include="NBitcoin">
-      <Version>4.1.1.7</Version>
+      <Version>4.1.1.8</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>11.0.2</Version>
     </PackageReference>
     <PackageReference Include="OrientDB-Net.binary.Innov8tive">
       <Version>0.1.9</Version>

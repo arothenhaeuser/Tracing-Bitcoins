@@ -41,10 +41,10 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 _height = 0;  // genesis block
             }
-            _utxos = KeyValueStoreProvider.Instance.GetDatabase("UTXOs");
-            Transactions = new TransactionRepository(
-                    ConfigurationManager.ConnectionStrings["BitcoinMySQL"].ConnectionString,
-                    "transactions");
+            //_utxos = KeyValueStoreProvider.Instance.GetDatabase("UTXOs");
+            //Transactions = new TransactionRepository(
+            //        ConfigurationManager.ConnectionStrings["BitcoinMySQL"].ConnectionString,
+            //        "transactions");
             Connect();
         }
 
@@ -89,7 +89,7 @@ namespace fd.Coins.Core.NetworkConnector
                     }
                     catch (Exception e)
                     {
-                        File.AppendAllText("err.log", DateTime.Now + ":\t" + e.Message + "\n");
+                        File.AppendAllText("err.log", DateTime.Now + ":\t" + e.ToString() + "\n");
                         Save();
                         return;
                     }
@@ -104,96 +104,67 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 foreach (var tx in block.Transactions)
                 {
-                    AddVertices(tx, blockTime);
-                    AddEdges(tx);
-                    MergeVertices();
+                    var vTx = AddVertex(tx, blockTime);
+                    AddEdges(tx, vTx);
                 }
             }
             catch(Exception e)
             {
-                return false;
+                throw;
             }
             return true;
         }
-        public void AddVertices(Transaction tx, DateTime blockTime)
+        public OVertex AddVertex(Transaction tx, DateTime blockTime)
         {
             using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
             {
-                var current = db.Create.Vertex<OVertex>()
-                    .Set("hash", tx.GetHash().ToString())
-                    .Set("blockTime", DateTime.Now)
+                return db.Create.Vertex("Transaction")
+                    .Set("Hash", tx.GetHash().ToString())
+                    .Set("BlockTime", DateTime.Now)
                     .Run();
             }
         }
-        public void AddEdges(Transaction tx)
+        public void AddEdges(Transaction tx, OVertex vTx)
         {
             using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
             {
                 for (var i = 0; i < tx.Inputs.Count; i++)
                 {
-                    db.Create.Edge<OEdge>()
-                        .From(db.Create.Vertex<OVertex>().Set("hash", tx.Inputs[i].PrevOut.Hash.ToString()).Run())
-                        .To(db.Create.Vertex<OVertex>().Set("hash", tx.GetHash().ToString()).Run())
+                    var source = db.Select().From("Transaction").Where("Hash").Equals(tx.Inputs[i].PrevOut.Hash.ToString()).ToList<OVertex>().FirstOrCoinbase(db, tx.TotalOut.Satoshi);
+                    var edge = db.Create.Edge("Link")
+                        .From(source)
+                        .To(vTx)
                         .Set("sTx", tx.Inputs[i].PrevOut.Hash.ToString())
                         .Set("sN", tx.Inputs[i].PrevOut.N)
                         .Set("tTx", tx.GetHash().ToString())
                         .Run();
+                    if (!source.IsCoinBase())
+                    {
+                        var eFuture = db.Select().From("Link").Where("@rid").In(source.GetField<List<ORID>>("out_Link")).And("sN").Equals(tx.Inputs[i].PrevOut.N).ToList<OEdge>().SingleOrDefault();
+                        if (eFuture != null)
+                        {
+                            edge.SetField("tAddr", eFuture.GetField<string>("tAddr"));
+                            edge.SetField("amount", eFuture.GetField<long>("amount"));
+                            db.Update(edge).Run();
+                            var vFuture = db.Select().From("Transaction").Where("@rid").Equals(eFuture.InV).ToList<OVertex>().SingleOrDefault();
+                            if (vFuture != null)
+                            {
+                                db.Delete.Vertex(vFuture).Run();
+                            }
+                        }
+                    }
                 }
-                for (var i = 0; i < tx.Outputs.Count; i++)
+                for (int i = 0; i < tx.Outputs.Count; i++)
                 {
-                    db.Create.Edge<OEdge>()
-                        .From(db.Create.Vertex<OVertex>().Set("hash", tx.GetHash().ToString()).Run())
-                        .To(db.Create.Vertex<OVertex>().Set("hash", "future").Run())
+                    db.Create.Edge("Link")
+                        .From(vTx)
+                        .To(db.Create.Vertex("Transaction").Set("Hash", "future").Run())
                         .Set("sTx", tx.GetHash().ToString())
-                        .Set("sN", i)
+                        .Set<long>("sN", i)
                         .Set("tTx", "future")
                         .Set("tAddr", GetAddress(tx.Outputs[i].ScriptPubKey))
                         .Set("amount", tx.Outputs[i].Value.Satoshi)
-                        .Set("tTx", "future")
                         .Run();
-                }
-            }
-        }
-        public void MergeVertices()
-        {
-            using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
-            {
-                var unconnected = db.Query<OVertex>("SELECT FROM V WHERE in().size() = 0 AND out().size() = 0");
-                foreach(var uVertex in unconnected)
-                {
-                    var inEdges = db.Select().From("E").Where("tTx").Equals(uVertex.GetField<string>("hash")).ToList<OEdge>();
-                    foreach (var edge in inEdges)
-                    {
-                        var source = db.Select().From("V").Where("@rid").Equals(edge.GetField<ORID>("out")).ToList<OVertex>().FirstOrDefault();
-                        db.Create.Edge<OEdge>()
-                            .From(source)
-                            .To(uVertex)
-                            .Set("sTx", edge.GetField<string>("sTx"))
-                            .Set("sN", edge.GetField<int>("sN"))
-                            .Set("tTx", uVertex.GetField<string>("hash"))
-                            .Run();
-                        db.Delete.Edge(edge).Run();
-                    }
-                    var outEdges = db.Select().From("E").Where("sTx").Equals(uVertex.GetField<string>("hash")).ToList<OEdge>();
-                    foreach (var edge in outEdges)
-                    {
-                        var target = db.Select().From("V").Where("@rid").Equals(edge.GetField<ORID>("in")).ToList<OVertex>().FirstOrDefault();
-                        db.Create.Edge<OEdge>()
-                            .From(uVertex)
-                            .To(target)
-                            .Set("sTx", edge.GetField<string>("sTx"))
-                            .Set("sN", edge.GetField<int>("sN"))
-                            .Set("tTx", target.GetField<string>("hash"))
-                            .Set("tAddr", edge.GetField<string>("tAddr"))
-                            .Set("amount", edge.GetField<int>("amount"))
-                            .Run();
-                        db.Delete.Edge(edge).Run();
-                    }
-                    var twins = db.Select().From("V").Where("hash").Equals(uVertex.GetField<string>("hash")).And("@rid").NotEquals(uVertex.ORID).ToList<OVertex>();
-                    foreach (var twin in twins)
-                    {
-                        db.Delete.Vertex(twin).Run();
-                    }
                 }
             }
         }
@@ -308,6 +279,7 @@ namespace fd.Coins.Core.NetworkConnector
 
         public void Start()
         {
+            CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
             PeriodicReport();
             PeriodicLoadData();
         }
@@ -323,9 +295,27 @@ namespace fd.Coins.Core.NetworkConnector
         {
             using (var server = new OServer(hostname, port, user, password))
             {
+                //debug
+                if(server.DatabaseExist(database, OStorageType.PLocal))
+                    server.DropDatabase(database, OStorageType.PLocal);
+                File.Delete("err.log");
+                File.Delete("state.log");
                 if (!server.DatabaseExist(database, OStorageType.PLocal))
                 {
-                    return server.CreateDatabase(database, ODatabaseType.Graph, OStorageType.PLocal);
+                    var created = server.CreateDatabase(database, ODatabaseType.Graph, OStorageType.PLocal);
+                    using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+                    {
+                        db.Command("CREATE CLASS Transaction EXTENDS V");
+                        db.Command("CREATE PROPERTY Transaction.Hash STRING");
+                        db.Command("CREATE PROPERTY Transaction.BlockTime DATETIME");
+                        db.Command("CREATE CLASS Link EXTENDS E");
+                        db.Command("CREATE PROPERTY Link.sTx STRING");
+                        db.Command("CREATE PROPERTY Link.sN LONG");
+                        db.Command("CREATE PROPERTY Link.tTx STRING");
+                        db.Command("CREATE PROPERTY Link.tAddr STRING");
+                        db.Command("CREATE PROPERTY Link.amount LONG");
+                    }
+                    return created;
                 }
                 else
                 {

@@ -19,7 +19,7 @@ namespace fd.Coins.Core.NetworkConnector
         private Node _localClient;
 
         private int _height;
-        private PersistentDictionary<string, string> _utxos { get; set; }
+        private PersistentDictionary<string, string> _vertices { get; set; }
 
         public int Height
         {
@@ -41,7 +41,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 _height = 0;  // genesis block
             }
-            //_utxos = KeyValueStoreProvider.Instance.GetDatabase("UTXOs");
+            _vertices = KeyValueStoreProvider.Instance.GetDatabase("vertices");
             //Transactions = new TransactionRepository(
             //        ConfigurationManager.ConnectionStrings["BitcoinMySQL"].ConnectionString,
             //        "transactions");
@@ -118,10 +118,12 @@ namespace fd.Coins.Core.NetworkConnector
         {
             using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
             {
-                return db.Create.Vertex("Transaction")
+                var vertex = db.Create.Vertex("Transaction")
                     .Set("Hash", tx.GetHash().ToString())
-                    .Set("BlockTime", DateTime.Now)
+                    .Set("BlockTime", blockTime)
                     .Run();
+                _vertices.AddOrReplace(tx.GetHash().ToString(), vertex.ORID.ToString());
+                return vertex;
             }
         }
         public void AddEdges(Transaction tx, OVertex vTx)
@@ -130,7 +132,12 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 for (var i = 0; i < tx.Inputs.Count; i++)
                 {
-                    var source = db.Select().From("Transaction").Where("Hash").Equals(tx.Inputs[i].PrevOut.Hash.ToString()).ToList<OVertex>().FirstOrCoinbase(db, tx.TotalOut.Satoshi);
+                    var prevOrid = string.Empty;
+                    _vertices.TryGetValue(tx.Inputs[i].PrevOut.Hash.ToString(), out prevOrid);
+                    var source =
+                        prevOrid != null
+                        ? db.Select().From(prevOrid).ToList<OVertex>().First()
+                        : db.Create.Vertex("Transaction").Set("Hash", "coinbase").Set("amount", tx.TotalOut.Satoshi).Run();
                     var edge = db.Create.Edge("Link")
                         .From(source)
                         .To(vTx)
@@ -140,13 +147,22 @@ namespace fd.Coins.Core.NetworkConnector
                         .Run();
                     if (!source.IsCoinBase())
                     {
-                        var eFuture = db.Select().From("Link").Where("@rid").In(source.GetField<List<ORID>>("out_Link")).And("sN").Equals(tx.Inputs[i].PrevOut.N).ToList<OEdge>().SingleOrDefault();
+                        var candidates = new List<OEdge>();
+                        OEdge eFuture = null;
+                        foreach(var orid in source.GetField<List<ORID>>("out_Link"))
+                        {
+                            eFuture = db.Select().From(orid).ToList<OEdge>().First();
+                            if (eFuture.GetField<long>("sN").Equals(tx.Inputs[i].PrevOut.N))
+                            {
+                                break;
+                            }
+                        }
                         if (eFuture != null)
                         {
                             edge.SetField("tAddr", eFuture.GetField<string>("tAddr"));
                             edge.SetField("amount", eFuture.GetField<long>("amount"));
                             db.Update(edge).Run();
-                            var vFuture = db.Select().From("Transaction").Where("@rid").Equals(eFuture.InV).ToList<OVertex>().SingleOrDefault();
+                            var vFuture = db.Select().From(eFuture.InV).ToList<OVertex>().SingleOrDefault();
                             if (vFuture != null)
                             {
                                 db.Delete.Vertex(vFuture).Run();
@@ -179,7 +195,7 @@ namespace fd.Coins.Core.NetworkConnector
                 {
                     try
                     {
-                        _utxos.Add(
+                        _vertices.Add(
                         $"{tx.GetHash().ToString()},{i.ToString()}",
                         new TxOutput(
                             i,
@@ -219,7 +235,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 try
                 {
-                    _utxos.Remove(key);
+                    _vertices.Remove(key);
                 }
                 catch (Exception e)
                 {
@@ -250,7 +266,7 @@ namespace fd.Coins.Core.NetworkConnector
             }
             else
             {
-                return inputs.Select((x, i) => new TxInput(tx.GetHash().ToString(), i, _utxos[$"{x.PrevOut.Hash},{x.PrevOut.N}"])); // lookup outputs pointing towards me
+                return inputs.Select((x, i) => new TxInput(tx.GetHash().ToString(), i, _vertices[$"{x.PrevOut.Hash},{x.PrevOut.N}"])); // lookup outputs pointing towards me
             }
         }
 
@@ -274,7 +290,6 @@ namespace fd.Coins.Core.NetworkConnector
         private void Save()
         {
             File.WriteAllText("state.log", _height.ToString());
-            _utxos.Flush();
         }
 
         public void Start()
@@ -295,11 +310,6 @@ namespace fd.Coins.Core.NetworkConnector
         {
             using (var server = new OServer(hostname, port, user, password))
             {
-                //debug
-                if(server.DatabaseExist(database, OStorageType.PLocal))
-                    server.DropDatabase(database, OStorageType.PLocal);
-                File.Delete("err.log");
-                File.Delete("state.log");
                 if (!server.DatabaseExist(database, OStorageType.PLocal))
                 {
                     var created = server.CreateDatabase(database, ODatabaseType.Graph, OStorageType.PLocal);
@@ -314,6 +324,7 @@ namespace fd.Coins.Core.NetworkConnector
                         db.Command("CREATE PROPERTY Link.tTx STRING");
                         db.Command("CREATE PROPERTY Link.tAddr STRING");
                         db.Command("CREATE PROPERTY Link.amount LONG");
+                        //db.Command("DECLARE INTENT MASSIVEINSERT");
                     }
                     return created;
                 }

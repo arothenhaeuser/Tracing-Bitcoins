@@ -134,10 +134,11 @@ namespace fd.Coins.Core.NetworkConnector
                 {
                     var prevOrid = string.Empty;
                     _vertices.TryGetValue(tx.Inputs[i].PrevOut.Hash.ToString(), out prevOrid);
-                    var source =
-                        prevOrid != null
-                        ? db.Select().From(prevOrid).ToList<OVertex>().First()
-                        : db.Create.Vertex("Transaction").Set("Hash", "coinbase").Set("amount", tx.TotalOut.Satoshi).Run();
+                    if (string.IsNullOrEmpty(prevOrid))
+                    {
+                        prevOrid = db.Select().From("Transaction").Where("Hash").Equals(tx.Inputs[i].PrevOut.Hash.ToString()).ToList<OVertex>().FirstOrCoinbase(db, tx.TotalOut.Satoshi).ORID.ToString();
+                    }
+                    var source = db.Select().From(prevOrid).ToList<OVertex>().First();
                     var edge = db.Create.Edge("Link")
                         .From(source)
                         .To(vTx)

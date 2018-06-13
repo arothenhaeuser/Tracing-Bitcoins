@@ -165,7 +165,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 return _connectionParameters.TemplateBehaviors.Find<ChainBehavior>().Chain;
             }
-            var chain = new ConcurrentChain();
+            var chain = new ConcurrentChain(Network.Main);
             try
             {
                 lock (_saving)

@@ -27,27 +27,16 @@ namespace fd.Coins.Core.NetworkConnector
             }
         }
 
-        private long _linkState;
-        public long LinkState
-        {
-            get
-            {
-                return _linkState;
-            }
-        }
-
         public BlockProvider()
         {
             _network = new BitcoinNetworkConnector();
             if (File.Exists("state.log"))
             {
-                _height = int.Parse(File.ReadAllLines("state.log").ToList()[0]);
-                _linkState = long.Parse(File.ReadLines("state.log").ToList()[1]);
+                _height = int.Parse(File.ReadAllText("state.log"));
             }
             else
             {
                 _height = 0;  // genesis block
-                _linkState = 0;
             }
             Connect();
         }
@@ -64,18 +53,78 @@ namespace fd.Coins.Core.NetworkConnector
             Console.Clear();
         }
 
-        //private async void PeriodicLinkData()
-        //{
-        //    while (!_disposed)
-        //    {
-        //        using(var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
-        //        {
-        //            var unlinked = db.Command($"SELECT FROM Transaction WHERE unlinked = True").ToList();
-        //            foreach(var node in unlinked)
-        //        }
-        //    }
-        //    await Task.Delay(60000);
-        //}
+        private async void PeriodicLinkData()
+        {
+            while (!_disposed)
+            {
+                using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+                {
+                    var unlinked = db.Command($"SELECT FROM Transaction WHERE unlinked = True LIMIT 50000").ToList();
+                    foreach (var node in unlinked)
+                    {
+                        var cIn = GetInputCount(node);
+                        var cOut = GetOutputCount(node);
+                        for(var i = 0; i < cIn; i++)
+                        {
+                            var inputString = node.GetField<string>($"INPUT{i}");
+                            var prevHash = inputString.Split(':')[0];
+                            var prevN = Int64.Parse(inputString.Split(':')[1]);
+                            var prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = '{prevHash}'").ToSingle();
+                            if(prevTx == null)
+                            {
+                                prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = 'Coinbase[{node.GetHashCode()}]'").ToSingle();
+                                if(prevTx == null)
+                                {
+                                    prevTx = db.Create.Vertex("Transaction").Set("Hash", $"Coinbase[{node.GetHashCode()}]").Run();
+                                }
+                            }
+                            var inEdge = db.Command($"SELECT * FROM (SELECT expand(inE()) FROM {node.ORID}) WHERE sN = {prevN}").ToSingle();
+                            if(inEdge == null)
+                            {
+                                db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("tTx", node.GetField<string>("Hash")).Run();
+                            }
+                        }
+                        for(var i = 0; i < cOut; i++)
+                        {
+                            var outputString = node.GetField<string>($"OUTPUT{i}");
+                            var outN = outputString.Split(':')[0];
+                            var outAddr = outputString.Split(':')[1];
+                            var outAmount = outputString.Split(':')[2];
+                            var outEdge = db.Command($"SELECT * FROM (SELECT expand(outE()) FROM {node.ORID}) WHERE sN = {outN}").ToSingle();
+                            if(outEdge == null)
+                            {
+                                continue;
+                            }
+                            db.Command($"UPDATE EDGE Link SET tAddr = '{outAddr}', amount = {outAmount} WHERE @rid = {outEdge.ORID}");
+                            db.Command($"UPDATE Transaction SET unlinked = False WHERE @rid = {node.ORID}");
+                        }
+                    }
+                }
+            }
+            await Task.Delay(60000);
+        }
+
+        private int GetInputCount(ODocument node)
+        {
+            var c = 0;
+            var tmp = new object();
+            while(node.TryGetValue($"INPUT{c}", out tmp))
+            {
+                c++;
+            }
+            return c;
+        }
+
+        private int GetOutputCount(ODocument node)
+        {
+            var c = 0;
+            var tmp = new object();
+            while (node.TryGetValue($"OUTPUT{c}", out tmp))
+            {
+                c++;
+            }
+            return c;
+        }
 
         private async void PeriodicLoadData()
         {
@@ -122,7 +171,6 @@ namespace fd.Coins.Core.NetworkConnector
                 foreach (var tx in block.Transactions)
                 {
                     var vTx = AddVertex(tx, blockTime);
-                    //AddEdges(tx, vTx);
                 }
             }
             catch(OException oe)
@@ -154,66 +202,7 @@ namespace fd.Coins.Core.NetworkConnector
                     vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
                 }
                 db.Update(vertex).Run();
-                //_vertices.AddOrReplace(tx.GetHash().ToString(), vertex.ORID.ToString());
                 return vertex;
-            }
-        }
-        public void AddEdges(Transaction tx, OVertex vTx)
-        {
-            using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
-            {
-                for (var i = 0; i < tx.Inputs.Count; i++)
-                {
-                    var prevOrid = string.Empty;
-                    if (string.IsNullOrEmpty(prevOrid))
-                    {
-                        prevOrid = db.Select().From("Transaction").Where("Hash").Equals(tx.Inputs[i].PrevOut.Hash.ToString()).ToList<OVertex>().FirstOrCoinbase(db, tx.TotalOut.Satoshi).ORID.ToString();
-                    }
-                    var source = db.Select().From(prevOrid).ToList<OVertex>().First();
-                    var edge = db.Create.Edge("Link")
-                        .From(source)
-                        .To(vTx)
-                        .Set("sTx", tx.Inputs[i].PrevOut.Hash.ToString())
-                        .Set("sN", tx.Inputs[i].PrevOut.N)
-                        .Set("tTx", tx.GetHash().ToString())
-                        .Run();
-                    if (!source.IsCoinBase())
-                    {
-                        var candidates = new List<OEdge>();
-                        OEdge eFuture = null;
-                        foreach(var orid in source.GetField<List<ORID>>("out_Link"))
-                        {
-                            eFuture = db.Select().From(orid).ToList<OEdge>().First();
-                            if (eFuture.GetField<long>("sN").Equals(tx.Inputs[i].PrevOut.N))
-                            {
-                                break;
-                            }
-                        }
-                        if (eFuture != null)
-                        {
-                            edge.SetField("tAddr", eFuture.GetField<string>("tAddr"));
-                            edge.SetField("amount", eFuture.GetField<long>("amount"));
-                            db.Update(edge).Run();
-                            var vFuture = db.Select().From(eFuture.InV).ToList<OVertex>().SingleOrDefault();
-                            if (vFuture != null)
-                            {
-                                db.Delete.Vertex(vFuture).Run();
-                            }
-                        }
-                    }
-                }
-                for (int i = 0; i < tx.Outputs.Count; i++)
-                {
-                    db.Create.Edge("Link")
-                        .From(vTx)
-                        .To(db.Create.Vertex("Transaction").Set("Hash", "future").Run())
-                        .Set("sTx", tx.GetHash().ToString())
-                        .Set<long>("sN", i)
-                        .Set("tTx", "future")
-                        .Set("tAddr", GetAddress(tx.Outputs[i].ScriptPubKey))
-                        .Set("amount", tx.Outputs[i].Value.Satoshi)
-                        .Run();
-                }
             }
         }
 
@@ -247,7 +236,7 @@ namespace fd.Coins.Core.NetworkConnector
 
         private void Save()
         {
-            File.WriteAllLines("state.log", new string[] { _height.ToString(), _linkState.ToString() });
+            File.WriteAllText("state.log", _height.ToString());
         }
 
         public void Start()
@@ -255,6 +244,7 @@ namespace fd.Coins.Core.NetworkConnector
             CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
             PeriodicReport();
             PeriodicLoadData();
+            PeriodicLinkData();
         }
 
         public void Stop()
@@ -277,8 +267,8 @@ namespace fd.Coins.Core.NetworkConnector
                         db.Command("CREATE PROPERTY Transaction.Hash STRING");
                         db.Command("CREATE INDEX IndexForHash ON Transaction (Hash) UNIQUE_HASH_INDEX");
                         db.Command("CREATE PROPERTY Transaction.BlockTime DATETIME");
-                        db.Command("ALTER PROPERTY Transaction.unlinked DEFAULT True");
-                        db.Command("CREATE PROPERTY Transaction.unlinked BOOLEAN");
+                        db.Command("CREATE PROPERTY Transaction.Unlinked BOOLEAN");
+                        db.Command("ALTER PROPERTY Transaction.Unlinked DEFAULT True");
                         db.Command("CREATE CLASS Link EXTENDS E");
                         db.Command("CREATE PROPERTY Link.sTx STRING");
                         db.Command("CREATE PROPERTY Link.sN LONG");

@@ -243,8 +243,11 @@ namespace fd.Coins.Core.NetworkConnector
         {
             CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
             PeriodicReport();
+            Task.Run(() =>
+            {
+                PeriodicLinkData();
+            });
             PeriodicLoadData();
-            PeriodicLinkData();
         }
 
         public void Stop()

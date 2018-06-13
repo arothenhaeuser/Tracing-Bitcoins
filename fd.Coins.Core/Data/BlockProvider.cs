@@ -19,8 +19,6 @@ namespace fd.Coins.Core.NetworkConnector
         private Node _localClient;
 
         private int _height;
-        private PersistentDictionary<string, string> _vertices { get; set; }
-
         public int Height
         {
             get
@@ -28,23 +26,29 @@ namespace fd.Coins.Core.NetworkConnector
                 return _height;
             }
         }
-        public TransactionRepository Transactions { get; set; }
+
+        private long _linkState;
+        public long LinkState
+        {
+            get
+            {
+                return _linkState;
+            }
+        }
 
         public BlockProvider()
         {
             _network = new BitcoinNetworkConnector();
             if (File.Exists("state.log"))
             {
-                _height = int.Parse(File.ReadAllText("state.log"));
+                _height = int.Parse(File.ReadAllLines("state.log").ToList()[0]);
+                _linkState = long.Parse(File.ReadLines("state.log").ToList()[1]);
             }
             else
             {
                 _height = 0;  // genesis block
+                _linkState = 0;
             }
-            _vertices = KeyValueStoreProvider.Instance.GetDatabase("vertices");
-            //Transactions = new TransactionRepository(
-            //        ConfigurationManager.ConnectionStrings["BitcoinMySQL"].ConnectionString,
-            //        "transactions");
             Connect();
         }
 
@@ -59,6 +63,19 @@ namespace fd.Coins.Core.NetworkConnector
             }
             Console.Clear();
         }
+
+        //private async void PeriodicLinkData()
+        //{
+        //    while (!_disposed)
+        //    {
+        //        using(var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+        //        {
+        //            var unlinked = db.Command($"SELECT FROM Transaction WHERE unlinked = True").ToList();
+        //            foreach(var node in unlinked)
+        //        }
+        //    }
+        //    await Task.Delay(60000);
+        //}
 
         private async void PeriodicLoadData()
         {
@@ -105,8 +122,12 @@ namespace fd.Coins.Core.NetworkConnector
                 foreach (var tx in block.Transactions)
                 {
                     var vTx = AddVertex(tx, blockTime);
-                    AddEdges(tx, vTx);
+                    //AddEdges(tx, vTx);
                 }
+            }
+            catch(OException oe)
+            {
+                return true; // duplicate txids occured in the early years of bitcoin
             }
             catch(Exception e)
             {
@@ -122,7 +143,18 @@ namespace fd.Coins.Core.NetworkConnector
                     .Set("Hash", tx.GetHash().ToString())
                     .Set("BlockTime", blockTime)
                     .Run();
-                _vertices.AddOrReplace(tx.GetHash().ToString(), vertex.ORID.ToString());
+                for(var i=0; i < tx.Inputs.Count; i++)
+                {
+                    var input = tx.Inputs[i];
+                    vertex.SetField($"INPUT{i}", $"{input.PrevOut.Hash}:{input.PrevOut.N}");
+                }
+                for(var i=0; i<tx.Outputs.Count; i++)
+                {
+                    var output = tx.Outputs[i];
+                    vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
+                }
+                db.Update(vertex).Run();
+                //_vertices.AddOrReplace(tx.GetHash().ToString(), vertex.ORID.ToString());
                 return vertex;
             }
         }
@@ -133,7 +165,6 @@ namespace fd.Coins.Core.NetworkConnector
                 for (var i = 0; i < tx.Inputs.Count; i++)
                 {
                     var prevOrid = string.Empty;
-                    _vertices.TryGetValue(tx.Inputs[i].PrevOut.Hash.ToString(), out prevOrid);
                     if (string.IsNullOrEmpty(prevOrid))
                     {
                         prevOrid = db.Select().From("Transaction").Where("Hash").Equals(tx.Inputs[i].PrevOut.Hash.ToString()).ToList<OVertex>().FirstOrCoinbase(db, tx.TotalOut.Satoshi).ORID.ToString();
@@ -185,69 +216,8 @@ namespace fd.Coins.Core.NetworkConnector
                 }
             }
         }
-        private bool ProcessNewBlock(Block block)
-        {
-            var success = true;
-            var blockTime = block.Header.BlockTime.LocalDateTime;
-            // add outputs to dict
-            foreach (var tx in block.Transactions)
-            {
-                for (var i = 0; i < tx.Outputs.Count; i++)
-                {
-                    try
-                    {
-                        _vertices.Add(
-                        $"{tx.GetHash().ToString()},{i.ToString()}",
-                        new TxOutput(
-                            i,
-                            tx.GetHash().ToString(),
-                            GetAddress(tx.Outputs[i].ScriptPubKey),
-                            tx.Outputs[i].Value.Satoshi)
-                            .ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        if (!(e is ArgumentException))
-                        {
-                            success = false;
-                            File.AppendAllText("err.log", DateTime.Now + ":\t" + e.Message + "\n");
-                        }
-                    }
-                }
-            }
 
-            // adding to db
-            success = Transactions.AddRange(
-                block.Transactions.Select(
-                    x => new TransactionEntity(
-                        x.GetHash().ToString(),
-                        blockTime,
-                        ConvertInputs(x),
-                        x.Outputs.Select(
-                            (z, i) => new TxOutput()
-                            {
-                                Amount = z.Value.Satoshi,
-                                Hash = x.GetHash().ToString(),
-                                Position = i,
-                                TargetAddress = GetAddress(z.ScriptPubKey)
-                            }))).ToList()) && success;
-            //clean up UTXOs
-            foreach (var key in block.Transactions.Where(x => !x.IsCoinBase).SelectMany(x => x.Inputs.Select(y => $"{y.PrevOut.Hash},{y.PrevOut.N}")).ToList())
-            {
-                try
-                {
-                    _vertices.Remove(key);
-                }
-                catch (Exception e)
-                {
-                    success = false;
-                    File.AppendAllText("err.log", DateTime.Now + ":\t" + e.Message + "\n");
-                }
-            }
-            return success;
-        }
-
-        private string GetAddress(Script scriptPubKey)
+        public string GetAddress(Script scriptPubKey)
         {
             var add = scriptPubKey.GetDestinationAddress(Network.Main)?.ToString();
             if (string.IsNullOrEmpty(add))
@@ -256,19 +226,6 @@ namespace fd.Coins.Core.NetworkConnector
                 add = string.Join(",", keys.Select(x => x.GetAddress(Network.Main)));
             }
             return add;
-        }
-
-        private IEnumerable<TxInput> ConvertInputs(Transaction tx)
-        {
-            var inputs = tx.Inputs;
-            if (tx.IsCoinBase)
-            {
-                return new List<TxInput>() { new TxInput(0, tx.GetHash().ToString(), "coinbase", tx.TotalOut) };
-            }
-            else
-            {
-                return inputs.Select((x, i) => new TxInput(tx.GetHash().ToString(), i, _vertices[$"{x.PrevOut.Hash},{x.PrevOut.N}"])); // lookup outputs pointing towards me
-            }
         }
 
         public IEnumerable<Block> GetBlocks(int fromHeight, int toHeight)
@@ -290,7 +247,7 @@ namespace fd.Coins.Core.NetworkConnector
 
         private void Save()
         {
-            File.WriteAllText("state.log", _height.ToString());
+            File.WriteAllLines("state.log", new string[] { _height.ToString(), _linkState.ToString() });
         }
 
         public void Start()
@@ -318,14 +275,16 @@ namespace fd.Coins.Core.NetworkConnector
                     {
                         db.Command("CREATE CLASS Transaction EXTENDS V");
                         db.Command("CREATE PROPERTY Transaction.Hash STRING");
+                        db.Command("CREATE INDEX IndexForHash ON Transaction (Hash) UNIQUE_HASH_INDEX");
                         db.Command("CREATE PROPERTY Transaction.BlockTime DATETIME");
+                        db.Command("ALTER PROPERTY Transaction.unlinked DEFAULT True");
+                        db.Command("CREATE PROPERTY Transaction.unlinked BOOLEAN");
                         db.Command("CREATE CLASS Link EXTENDS E");
                         db.Command("CREATE PROPERTY Link.sTx STRING");
                         db.Command("CREATE PROPERTY Link.sN LONG");
                         db.Command("CREATE PROPERTY Link.tTx STRING");
                         db.Command("CREATE PROPERTY Link.tAddr STRING");
                         db.Command("CREATE PROPERTY Link.amount LONG");
-                        //db.Command("DECLARE INTENT MASSIVEINSERT");
                     }
                     return created;
                 }

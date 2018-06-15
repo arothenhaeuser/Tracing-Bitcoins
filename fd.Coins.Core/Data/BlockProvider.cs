@@ -59,7 +59,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var unlinked = db.Command($"SELECT FROM Transaction WHERE unlinked = True LIMIT 50000").ToList();
+                    var unlinked = db.Command($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000").ToList();
                     foreach (var node in unlinked)
                     {
                         var cIn = GetInputCount(node);
@@ -96,7 +96,7 @@ namespace fd.Coins.Core.NetworkConnector
                                 continue;
                             }
                             db.Command($"UPDATE EDGE Link SET tAddr = '{outAddr}', amount = {outAmount} WHERE @rid = {outEdge.ORID}");
-                            db.Command($"UPDATE Transaction SET unlinked = False WHERE @rid = {node.ORID}");
+                            db.Command($"UPDATE Transaction SET Unlinked = False WHERE @rid = {node.ORID}");
                         }
                     }
                 }
@@ -155,8 +155,7 @@ namespace fd.Coins.Core.NetworkConnector
                     }
                     catch (Exception e)
                     {
-                        File.AppendAllText("err.log", DateTime.Now + ":\t" + e.ToString() + "\n");
-                        Save();
+                        Error(e);
                         return;
                     }
                 }
@@ -229,9 +228,16 @@ namespace fd.Coins.Core.NetworkConnector
 
         private void Connect()
         {
-            _network.Connect();
-            _localClient = Node.ConnectToLocal(Network.Main, new NodeConnectionParameters());
-            _localClient.VersionHandshake();
+            try
+            {
+                _network.Connect();
+                _localClient = Node.ConnectToLocal(Network.Main, new NodeConnectionParameters());
+                _localClient.VersionHandshake();
+            }
+            catch(Exception e)
+            {
+                Error(e);
+            }
         }
 
         private void Save()
@@ -286,6 +292,12 @@ namespace fd.Coins.Core.NetworkConnector
                     return true;
                 }
             }
+        }
+
+        private void Error(Exception e)
+        {
+            File.AppendAllText("err.log", DateTime.Now + ":\t" + e.ToString() + "\n");
+            Stop();
         }
     }
 }

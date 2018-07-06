@@ -7,9 +7,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Cli", "fd.Coins.Cl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Core", "fd.Coins.Core\fd.Coins.Core.csproj", "{3575C758-07B9-4676-8A22-E9408B49B7C0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.AFistfulOfBitcoins", "..\Fistful\AFistfulOfBitcoins\fd.Coins.AFistfulOfBitcoins.csproj", "{2592C208-FC5B-4339-B0CF-59E1C9F8F267}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.AFistfulOfBitcoins", "fd.Coins.AFistfulOfBitcoins\fd.Coins.AFistfulOfBitcoins.csproj", "{2592C208-FC5B-4339-B0CF-59E1C9F8F267}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Evaluation", "Evaluation\fd.Coins.Evaluation.csproj", "{3B1E5B15-97A1-4556-B91A-7970F81EF720}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Evaluation", "fd.Core.Evaluation\fd.Coins.Evaluation.csproj", "{3B1E5B15-97A1-4556-B91A-7970F81EF720}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

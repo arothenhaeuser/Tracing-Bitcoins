@@ -82,9 +82,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="Data\IRepository.cs" />
-    <Compile Include="Data\Repository.cs" />
     <Compile Include="Data\TransactionEntity.cs" />
-    <Compile Include="Data\TransactionRepository.cs" />
     <Compile Include="Data\TxInput.cs" />
     <Compile Include="Data\TxOutput.cs" />
     <Compile Include="Data\WhereBuilder.cs" />
@@ -102,14 +100,8 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Dapper">
-      <Version>1.50.2</Version>
-    </PackageReference>
-    <PackageReference Include="MySql.Data">
-      <Version>6.9.9</Version>
-    </PackageReference>
     <PackageReference Include="NBitcoin">
-      <Version>4.1.0.11</Version>
+      <Version>4.1.1.19</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>11.0.2</Version>

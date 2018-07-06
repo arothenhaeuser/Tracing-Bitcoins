@@ -1,16 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2024
+VisualStudioVersion = 15.0.27130.2027
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Cli", "fd.Coins.Cli\fd.Coins.Cli.csproj", "{D2E13358-DBBD-4EC8-85CA-CEEF65FD8BCD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Core", "fd.Coins.Core\fd.Coins.Core.csproj", "{3575C758-07B9-4676-8A22-E9408B49B7C0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.AFistfulOfBitcoins", "..\Fistful\AFistfulOfBitcoins\fd.Coins.AFistfulOfBitcoins.csproj", "{2592C208-FC5B-4339-B0CF-59E1C9F8F267}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Evaluation", "Evaluation\fd.Coins.Evaluation.csproj", "{3B1E5B15-97A1-4556-B91A-7970F81EF720}"
+EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -24,12 +25,23 @@ Global
 		{3575C758-07B9-4676-8A22-E9408B49B7C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3575C758-07B9-4676-8A22-E9408B49B7C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3575C758-07B9-4676-8A22-E9408B49B7C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2592C208-FC5B-4339-B0CF-59E1C9F8F267}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2592C208-FC5B-4339-B0CF-59E1C9F8F267}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2592C208-FC5B-4339-B0CF-59E1C9F8F267}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2592C208-FC5B-4339-B0CF-59E1C9F8F267}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B1E5B15-97A1-4556-B91A-7970F81EF720}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B1E5B15-97A1-4556-B91A-7970F81EF720}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B1E5B15-97A1-4556-B91A-7970F81EF720}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B1E5B15-97A1-4556-B91A-7970F81EF720}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A46FA65D-A574-4BBA-97CF-C3EFEA3BABC8}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

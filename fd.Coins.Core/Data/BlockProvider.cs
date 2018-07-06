@@ -1,10 +1,9 @@
-﻿using Microsoft.Isam.Esent.Collections.Generic;
-using NBitcoin;
+﻿using NBitcoin;
 using NBitcoin.Protocol;
 using Orient.Client;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -46,11 +45,16 @@ namespace fd.Coins.Core.NetworkConnector
         {
             while (!_disposed)
             {
+                Save();
                 Console.Clear();
                 Console.WriteLine(_height);
-                await Task.Delay(5000);
+                await Task.Delay(10000);
             }
             Console.Clear();
+        }
+        private bool IsCoinbaseTx(ODocument node)
+        {
+            return node.GetField<bool>("Coinbase");
         }
 
         private async void PeriodicLinkData()
@@ -59,34 +63,17 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var unlinked = db.Command($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000").ToList();
+                    var unlinked = db.Command($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000 TIMEOUT 10000 RETURN").ToList();
                     foreach (var node in unlinked)
                     {
-                        var cIn = GetInputCount(node);
-                        //var cOut = GetOutputCount(node);
-                        for(var i = 0; i < cIn; i++)
+                        if (IsCoinbaseTx(node))
                         {
-                            var inputString = node.GetField<string>($"INPUT{i}");
-                            var prevHash = inputString.Split(':')[0];
-                            var prevN = Int64.Parse(inputString.Split(':')[1]);
-                            var prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = '{prevHash}'").ToSingle();
-                            if (prevTx == null || prevHash == "0000000000000000000000000000000000000000000000000000000000000000")
-                            {
-                                continue; //coinbase
-                            }
-                            var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
-                            var prevOutN = prevOutString?.Split(':')[0];
-                            var outAddr = prevOutString?.Split(':')[1];
-                            var outAmount = prevOutString != null ? Int64.Parse(prevOutString?.Split(':')[2]) : 0;
-                            //var inEdge = db.Command($"SELECT * FROM (SELECT expand(inE()) FROM {node.ORID}) WHERE sN = {prevN}").ToSingle();
-                            //if(inEdge == null)
-                            //{
                             var attmpts = 3;
                             while (attmpts > 0)
                             {
                                 try
                                 {
-                                    db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run();
+                                    db.Command($"UPDATE {node.ORID} SET Unlinked = False");
                                     break;
                                 }
                                 catch
@@ -101,43 +88,71 @@ namespace fd.Coins.Core.NetworkConnector
                                     }
                                 }
                             }
-                            //}
+                            continue;
                         }
-                        var attempts = 3;
-                        while (attempts > 0)
+                        var cIn = GetInputCount(node);
+                        var prevNotFound = false;
+                        for (var i = 0; i < cIn; i++)
                         {
-                            try
+                            var inputString = node.GetField<string>($"INPUT{i}");
+                            var prevHash = inputString.Split(':')[0];
+                            var prevN = Int64.Parse(inputString.Split(':')[1]);
+                            var prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = \"{prevHash}\"").ToSingle();
+                            if (prevTx != null)
                             {
-                                db.Command($"UPDATE {node.ORID} SET Unlinked = False");
-                                break;
-                            }
-                            catch
-                            {
-                                if (attempts > 0)
+                                var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
+                                var prevOutN = prevOutString?.Split(':')[0];
+                                var outAddr = prevOutString?.Split(':')[1];
+                                var outAmount = prevOutString != null ? Int64.Parse(prevOutString?.Split(':')[2]) : 0;
+                                var attmpts = 3;
+                                while (attmpts > 0)
                                 {
-                                    attempts--;
+                                    try
+                                    {
+                                        db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run();
+                                        break;
+                                    }
+                                    catch
+                                    {
+                                        if (attmpts > 0)
+                                        {
+                                            attmpts--;
+                                        }
+                                        else
+                                        {
+                                            throw;
+                                        }
+                                    }
                                 }
-                                else
+                            }
+                            else
+                            {
+                                prevNotFound = true;
+                            }
+                        }
+                        if (!prevNotFound)
+                        {
+                            var attempts = 3;
+                            while (attempts > 0)
+                            {
+                                try
                                 {
-                                    throw;
+                                    db.Command($"UPDATE {node.ORID} SET Unlinked = False");
+                                    break;
+                                }
+                                catch
+                                {
+                                    if (attempts > 0)
+                                    {
+                                        attempts--;
+                                    }
+                                    else
+                                    {
+                                        throw;
+                                    }
                                 }
                             }
                         }
-                        
-                        //for(var i = 0; i < cOut; i++)
-                        //{
-                        //    var outputString = node.GetField<string>($"OUTPUT{i}");
-                        //    var outN = outputString.Split(':')[0];
-                        //    var outAddr = outputString.Split(':')[1];
-                        //    var outAmount = outputString.Split(':')[2];
-                        //    var outEdge = db.Command($"SELECT * FROM (SELECT expand(outE()) FROM {node.ORID}) WHERE sN = {outN}").ToSingle();
-                        //    if(outEdge == null)
-                        //    {
-                        //        continue;
-                        //    }
-                        //    db.Command($"UPDATE EDGE Link SET tAddr = '{outAddr}', amount = {outAmount} WHERE @rid = {outEdge.ORID}");
-                        //    db.Command($"UPDATE Transaction SET Unlinked = False WHERE @rid = {node.ORID}");
-                        //}
                     }
                 }
             }
@@ -148,7 +163,7 @@ namespace fd.Coins.Core.NetworkConnector
         {
             var c = 0;
             var tmp = new object();
-            while(node.TryGetValue($"INPUT{c}", out tmp))
+            while (node.TryGetValue($"INPUT{c}", out tmp))
             {
                 c++;
             }
@@ -171,7 +186,7 @@ namespace fd.Coins.Core.NetworkConnector
             while (!_disposed)
             {
                 // get new blocks
-                if (_network.BlockChain.Height > _height)
+                if (_network.CurrentHeight > _height)
                 {
                     var hashes =
                         _network.BlockChain
@@ -207,61 +222,64 @@ namespace fd.Coins.Core.NetworkConnector
             var blockTime = block.Header.BlockTime.LocalDateTime;
             try
             {
-                foreach (var tx in block.Transactions)
+                using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var vTx = AddVertex(tx, blockTime);
+                    foreach (var tx in block.Transactions)
+                    {
+
+                        AddVertex(tx, blockTime, db);
+                    }
                 }
             }
-            catch(OException oe)
+            catch (OException oe)
             {
                 return true; // duplicate txids occured in the early years of bitcoin
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 throw;
             }
             return true;
         }
-        public OVertex AddVertex(Transaction tx, DateTime blockTime)
+
+        public OVertex AddVertex(Transaction tx, DateTime blockTime, ODatabase db)
         {
-            using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+            var vertex = db.Create.Vertex("Transaction")
+                .Set("Hash", tx.GetHash().ToString())
+                .Set("BlockTime", blockTime)
+                .Set("Coinbase", tx.IsCoinBase)
+                .Run();
+            for (var i = 0; i < tx.Inputs.Count; i++)
             {
-                var vertex = db.Create.Vertex("Transaction")
-                    .Set("Hash", tx.GetHash().ToString())
-                    .Set("BlockTime", blockTime)
-                    .Run();
-                for(var i=0; i < tx.Inputs.Count; i++)
-                {
-                    var input = tx.Inputs[i];
-                    vertex.SetField($"INPUT{i}", $"{input.PrevOut.Hash}:{input.PrevOut.N}");
-                }
-                for(var i=0; i<tx.Outputs.Count; i++)
-                {
-                    var output = tx.Outputs[i];
-                    vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
-                }
-                var attempts = 3;
-                while(attempts > 0)
-                {
-                    try
-                    {
-                        db.Update(vertex).Run();
-                        break;
-                    }
-                    catch
-                    {
-                        if (attempts > 0)
-                        {
-                            attempts--;
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                }
-                return vertex;
+                var input = tx.Inputs[i];
+                vertex.SetField($"INPUT{i}", $"{input.PrevOut.Hash}:{input.PrevOut.N}");
             }
+            for (var i = 0; i < tx.Outputs.Count; i++)
+            {
+                var output = tx.Outputs[i];
+                vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
+            }
+            var attempts = 3;
+            while (attempts > 0)
+            {
+                try
+                {
+                    db.Update(vertex).Run();
+                    break;
+                }
+                catch
+                {
+                    if (attempts > 0)
+                    {
+                        attempts--;
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            }
+            return vertex;
         }
 
         public string GetAddress(Script scriptPubKey)
@@ -293,7 +311,7 @@ namespace fd.Coins.Core.NetworkConnector
                 _localClient = Node.ConnectToLocal(Network.Main, new NodeConnectionParameters());
                 _localClient.VersionHandshake();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Error(e);
             }
@@ -318,7 +336,7 @@ namespace fd.Coins.Core.NetworkConnector
         public void Stop()
         {
             _disposed = true;
-            if(_network.ConnectedNodes != 0)
+            if (_network.ConnectedNodes != 0)
             {
                 _network.Disconnect();
             }
@@ -341,8 +359,11 @@ namespace fd.Coins.Core.NetworkConnector
                         db.Command("CREATE PROPERTY Transaction.Hash STRING");
                         db.Command("CREATE INDEX IndexForHash ON Transaction (Hash) UNIQUE_HASH_INDEX");
                         db.Command("CREATE PROPERTY Transaction.BlockTime DATETIME");
+                        db.Command("CREATE PROPERTY Transaction.Coinbase BOOLEAN");
+                        db.Command("ALTER PROPERTY Transaction.Coinbase DEFAULT False");
                         db.Command("CREATE PROPERTY Transaction.Unlinked BOOLEAN");
                         db.Command("ALTER PROPERTY Transaction.Unlinked DEFAULT True");
+                        db.Command("CREATE INDEX IndexForUnlinked ON Transaction (Unlinked) NOTUNIQUE");
                         db.Command("CREATE CLASS Link EXTENDS E");
                         db.Command("CREATE PROPERTY Link.sTx STRING");
                         db.Command("CREATE PROPERTY Link.sN LONG");

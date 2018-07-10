@@ -7,14 +7,6 @@ using System.Threading.Tasks;
 
 namespace fd.Coins.Cli
 {
-    public struct ConnectionParameters
-    {
-        string Hostname { get; set; }
-        int Port { get; set; }
-        string User { get; set; }
-        string Password { get; set; }
-    }
-
     class Program
     {
         static void Main(string[] args)

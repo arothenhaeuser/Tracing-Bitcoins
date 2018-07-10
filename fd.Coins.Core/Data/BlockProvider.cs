@@ -3,6 +3,7 @@ using NBitcoin.Protocol;
 using Orient.Client;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,11 +28,12 @@ namespace fd.Coins.Core.NetworkConnector
 
         public BlockProvider()
         {
-            try
+            _network = new BitcoinNetworkConnector();
+            if (File.Exists("state.log"))
             {
                 _height = int.Parse(File.ReadAllText("state.log"));
             }
-            catch
+            else
             {
                 _height = 0;  // genesis block
             }
@@ -46,7 +48,7 @@ namespace fd.Coins.Core.NetworkConnector
                 Save();
                 Console.Clear();
                 Console.WriteLine(_height);
-                await Task.Delay(5000);
+                await Task.Delay(10000);
             }
             Console.Clear();
         }
@@ -66,7 +68,26 @@ namespace fd.Coins.Core.NetworkConnector
                     {
                         if (IsCoinbaseTx(node))
                         {
-                            Retry(() => { db.Command($"UPDATE {node.ORID} SET Unlinked = False"); }, 3);
+                            var attmpts = 3;
+                            while (attmpts > 0)
+                            {
+                                try
+                                {
+                                    db.Command($"UPDATE {node.ORID} SET Unlinked = False");
+                                    break;
+                                }
+                                catch
+                                {
+                                    if (attmpts > 0)
+                                    {
+                                        attmpts--;
+                                    }
+                                    else
+                                    {
+                                        throw;
+                                    }
+                                }
+                            }
                             continue;
                         }
                         var cIn = GetInputCount(node);
@@ -83,7 +104,26 @@ namespace fd.Coins.Core.NetworkConnector
                                 var prevOutN = prevOutString?.Split(':')[0];
                                 var outAddr = prevOutString?.Split(':')[1];
                                 var outAmount = prevOutString != null ? Int64.Parse(prevOutString?.Split(':')[2]) : 0;
-                                Retry(() => { db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run(); }, 3);
+                                var attmpts = 3;
+                                while (attmpts > 0)
+                                {
+                                    try
+                                    {
+                                        db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run();
+                                        break;
+                                    }
+                                    catch
+                                    {
+                                        if (attmpts > 0)
+                                        {
+                                            attmpts--;
+                                        }
+                                        else
+                                        {
+                                            throw;
+                                        }
+                                    }
+                                }
                             }
                             else
                             {
@@ -92,7 +132,26 @@ namespace fd.Coins.Core.NetworkConnector
                         }
                         if (!prevNotFound)
                         {
-                            Retry(() => { db.Command($"UPDATE {node.ORID} SET Unlinked = False"); }, 3);
+                            var attempts = 3;
+                            while (attempts > 0)
+                            {
+                                try
+                                {
+                                    db.Command($"UPDATE {node.ORID} SET Unlinked = False");
+                                    break;
+                                }
+                                catch
+                                {
+                                    if (attempts > 0)
+                                    {
+                                        attempts--;
+                                    }
+                                    else
+                                    {
+                                        throw;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -167,6 +226,7 @@ namespace fd.Coins.Core.NetworkConnector
                 {
                     foreach (var tx in block.Transactions)
                     {
+
                         AddVertex(tx, blockTime, db);
                     }
                 }
@@ -181,9 +241,9 @@ namespace fd.Coins.Core.NetworkConnector
             }
             return true;
         }
+
         public OVertex AddVertex(Transaction tx, DateTime blockTime, ODatabase db)
         {
-
             var vertex = db.Create.Vertex("Transaction")
                 .Set("Hash", tx.GetHash().ToString())
                 .Set("BlockTime", blockTime)
@@ -199,28 +259,27 @@ namespace fd.Coins.Core.NetworkConnector
                 var output = tx.Outputs[i];
                 vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
             }
-            Retry(() => { db.Update(vertex).Run(); }, 3);
-            return vertex;
-        }
-
-        private void Retry(Action method, int attempts)
-        {
-            var a = attempts;
-            Exception e = null;
-            while (attempts-- > 0)
+            var attempts = 3;
+            while (attempts > 0)
             {
                 try
                 {
-                    method();
-                    return;
+                    db.Update(vertex).Run();
+                    break;
                 }
-                catch(Exception ex)
+                catch
                 {
-                    e = ex;
-                    continue;
+                    if (attempts > 0)
+                    {
+                        attempts--;
+                    }
+                    else
+                    {
+                        throw;
+                    }
                 }
             }
-            Error(e);
+            return vertex;
         }
 
         public string GetAddress(Script scriptPubKey)
@@ -248,7 +307,6 @@ namespace fd.Coins.Core.NetworkConnector
         {
             try
             {
-                _network = new BitcoinNetworkConnector();
                 _network.Connect();
                 _localClient = Node.ConnectToLocal(Network.Main, new NodeConnectionParameters());
                 _localClient.VersionHandshake();
@@ -266,30 +324,22 @@ namespace fd.Coins.Core.NetworkConnector
 
         public void Start()
         {
-            try
+            CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
+            PeriodicReport();
+            Task.Run(() =>
             {
-                CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
-                PeriodicReport();
-                Task.Run(() =>
-                {
-                    PeriodicLinkData();
-                });
-                PeriodicLoadData();
-            }
-            catch (Exception e)
-            {
-                Error(e);
-            }
+                PeriodicLinkData();
+            });
+            PeriodicLoadData();
         }
 
         public void Stop()
         {
             _disposed = true;
-            try
+            if (_network.ConnectedNodes != 0)
             {
                 _network.Disconnect();
             }
-            catch { }
             if (_localClient.IsConnected)
             {
                 _localClient.Disconnect();
@@ -320,7 +370,6 @@ namespace fd.Coins.Core.NetworkConnector
                         db.Command("CREATE PROPERTY Link.tTx STRING");
                         db.Command("CREATE PROPERTY Link.tAddr STRING");
                         db.Command("CREATE PROPERTY Link.amount LONG");
-                        db.Command("CREATE INDEX IndexForTAddr ON Link (tAddr) NOTUNIQUE");
                     }
                     return created;
                 }

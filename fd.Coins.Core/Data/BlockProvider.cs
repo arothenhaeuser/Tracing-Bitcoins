@@ -27,12 +27,11 @@ namespace fd.Coins.Core.NetworkConnector
 
         public BlockProvider()
         {
-            _network = new BitcoinNetworkConnector();
-            if (File.Exists("state.log"))
+            try
             {
                 _height = int.Parse(File.ReadAllText("state.log"));
             }
-            else
+            catch
             {
                 _height = 0;  // genesis block
             }
@@ -67,62 +66,24 @@ namespace fd.Coins.Core.NetworkConnector
                     {
                         if (IsCoinbaseTx(node))
                         {
-                            var attmpts = 3;
-                            while (attmpts > 0)
-                            {
-                                try
-                                {
-                                    db.Command($"UPDATE {node.ORID} SET Unlinked = False");
-                                    break;
-                                }
-                                catch
-                                {
-                                    if (attmpts > 0)
-                                    {
-                                        attmpts--;
-                                    }
-                                    else
-                                    {
-                                        throw;
-                                    }
-                                }
-                            }
+                            Retry(() => { db.Command($"UPDATE {node.ORID} SET Unlinked = False"); }, 3);
                             continue;
                         }
                         var cIn = GetInputCount(node);
                         var prevNotFound = false;
-                        for(var i = 0; i < cIn; i++)
+                        for (var i = 0; i < cIn; i++)
                         {
                             var inputString = node.GetField<string>($"INPUT{i}");
                             var prevHash = inputString.Split(':')[0];
                             var prevN = Int64.Parse(inputString.Split(':')[1]);
                             var prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = \"{prevHash}\"").ToSingle();
-                            if(prevTx != null)
+                            if (prevTx != null)
                             {
                                 var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
                                 var prevOutN = prevOutString?.Split(':')[0];
                                 var outAddr = prevOutString?.Split(':')[1];
                                 var outAmount = prevOutString != null ? Int64.Parse(prevOutString?.Split(':')[2]) : 0;
-                                var attmpts = 3;
-                                while (attmpts > 0)
-                                {
-                                    try
-                                    {
-                                        db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run();
-                                        break;
-                                    }
-                                    catch
-                                    {
-                                        if (attmpts > 0)
-                                        {
-                                            attmpts--;
-                                        }
-                                        else
-                                        {
-                                            throw;
-                                        }
-                                    }
-                                }
+                                Retry(() => { db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run(); }, 3);
                             }
                             else
                             {
@@ -131,26 +92,7 @@ namespace fd.Coins.Core.NetworkConnector
                         }
                         if (!prevNotFound)
                         {
-                            var attempts = 3;
-                            while (attempts > 0)
-                            {
-                                try
-                                {
-                                    db.Command($"UPDATE {node.ORID} SET Unlinked = False");
-                                    break;
-                                }
-                                catch
-                                {
-                                    if (attempts > 0)
-                                    {
-                                        attempts--;
-                                    }
-                                    else
-                                    {
-                                        throw;
-                                    }
-                                }
-                            }
+                            Retry(() => { db.Command($"UPDATE {node.ORID} SET Unlinked = False"); }, 3);
                         }
                     }
                 }
@@ -162,7 +104,7 @@ namespace fd.Coins.Core.NetworkConnector
         {
             var c = 0;
             var tmp = new object();
-            while(node.TryGetValue($"INPUT{c}", out tmp))
+            while (node.TryGetValue($"INPUT{c}", out tmp))
             {
                 c++;
             }
@@ -221,62 +163,64 @@ namespace fd.Coins.Core.NetworkConnector
             var blockTime = block.Header.BlockTime.LocalDateTime;
             try
             {
-                foreach (var tx in block.Transactions)
+                using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var vTx = AddVertex(tx, blockTime);
+                    foreach (var tx in block.Transactions)
+                    {
+                        AddVertex(tx, blockTime, db);
+                    }
                 }
             }
-            catch(OException oe)
+            catch (OException oe)
             {
                 return true; // duplicate txids occured in the early years of bitcoin
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 throw;
             }
             return true;
         }
-        public OVertex AddVertex(Transaction tx, DateTime blockTime)
+        public OVertex AddVertex(Transaction tx, DateTime blockTime, ODatabase db)
         {
-            using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+
+            var vertex = db.Create.Vertex("Transaction")
+                .Set("Hash", tx.GetHash().ToString())
+                .Set("BlockTime", blockTime)
+                .Set("Coinbase", tx.IsCoinBase)
+                .Run();
+            for (var i = 0; i < tx.Inputs.Count; i++)
             {
-                var vertex = db.Create.Vertex("Transaction")
-                    .Set("Hash", tx.GetHash().ToString())
-                    .Set("BlockTime", blockTime)
-                    .Set("Coinbase", tx.IsCoinBase)
-                    .Run();
-                for(var i=0; i < tx.Inputs.Count; i++)
-                {
-                    var input = tx.Inputs[i];
-                    vertex.SetField($"INPUT{i}", $"{input.PrevOut.Hash}:{input.PrevOut.N}");
-                }
-                for(var i=0; i<tx.Outputs.Count; i++)
-                {
-                    var output = tx.Outputs[i];
-                    vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
-                }
-                var attempts = 3;
-                while(attempts > 0)
-                {
-                    try
-                    {
-                        db.Update(vertex).Run();
-                        break;
-                    }
-                    catch
-                    {
-                        if (attempts > 0)
-                        {
-                            attempts--;
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                }
-                return vertex;
+                var input = tx.Inputs[i];
+                vertex.SetField($"INPUT{i}", $"{input.PrevOut.Hash}:{input.PrevOut.N}");
             }
+            for (var i = 0; i < tx.Outputs.Count; i++)
+            {
+                var output = tx.Outputs[i];
+                vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
+            }
+            Retry(() => { db.Update(vertex).Run(); }, 3);
+            return vertex;
+        }
+
+        private void Retry(Action method, int attempts)
+        {
+            var a = attempts;
+            Exception e = null;
+            while (attempts-- > 0)
+            {
+                try
+                {
+                    method();
+                    return;
+                }
+                catch(Exception ex)
+                {
+                    e = ex;
+                    continue;
+                }
+            }
+            Error(e);
         }
 
         public string GetAddress(Script scriptPubKey)
@@ -304,11 +248,12 @@ namespace fd.Coins.Core.NetworkConnector
         {
             try
             {
+                _network = new BitcoinNetworkConnector();
                 _network.Connect();
                 _localClient = Node.ConnectToLocal(Network.Main, new NodeConnectionParameters());
                 _localClient.VersionHandshake();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Error(e);
             }
@@ -321,22 +266,30 @@ namespace fd.Coins.Core.NetworkConnector
 
         public void Start()
         {
-            CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
-            PeriodicReport();
-            Task.Run(() =>
+            try
             {
-                PeriodicLinkData();
-            });
-            PeriodicLoadData();
+                CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
+                PeriodicReport();
+                Task.Run(() =>
+                {
+                    PeriodicLinkData();
+                });
+                PeriodicLoadData();
+            }
+            catch (Exception e)
+            {
+                Error(e);
+            }
         }
 
         public void Stop()
         {
             _disposed = true;
-            if(_network.ConnectedNodes != 0)
+            try
             {
                 _network.Disconnect();
             }
+            catch { }
             if (_localClient.IsConnected)
             {
                 _localClient.Disconnect();

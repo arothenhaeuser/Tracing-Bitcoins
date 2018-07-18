@@ -89,7 +89,7 @@ namespace fd.Coins.Core.NetworkConnector
                                 var prevOutN = prevOutString?.Split(':')[0];
                                 var outAddr = prevOutString?.Split(':')[1];
                                 var outAmount = prevOutString != null ? Int64.Parse(prevOutString?.Split(':')[2]) : 0;
-                                RetryOnConcurrentFail(3, () =>
+                                Utils.RetryOnConcurrentFail(3, () =>
                                 {
                                     db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run();
                                     return true;
@@ -102,7 +102,7 @@ namespace fd.Coins.Core.NetworkConnector
                         }
                         if (prevFound)
                         {
-                            RetryOnConcurrentFail(3, () =>
+                            Utils.RetryOnConcurrentFail(3, () =>
                             {
                                 db.Command($"UPDATE {node.ORID} SET Unlinked = False");
                                 return true;

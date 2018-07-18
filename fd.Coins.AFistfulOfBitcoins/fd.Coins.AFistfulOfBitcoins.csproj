@@ -32,11 +32,14 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="OrientDB.Net.Core">
-      <HintPath>..\..\Orient.Net.Core\src\OrientDB.Net.Core\bin\Release\netstandard16\OrientDB.Net.Core.dll</HintPath>
+    <Reference Include="OrientDB-Net.binary.Innov8tive">
+      <HintPath>..\..\OrientDB.NET-binary driver\src\OrientDB-Net.binary.Innov8tive\bin\Release\net451\OrientDB-Net.binary.Innov8tive.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Numerics.Vectors">
+      <HintPath>..\..\OrientDB.NET-binary driver\src\OrientDB-Net.binary.Innov8tive\bin\Release\net451\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -46,17 +49,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Heuristic1.cs" />
+    <Compile Include="Heuristic2.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="OrientDB-Net.binary.Innov8tive">
-      <Version>0.1.9</Version>
-    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

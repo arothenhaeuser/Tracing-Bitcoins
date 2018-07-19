@@ -29,7 +29,6 @@ namespace fd.Coins.AFistfulOfBitcoins
                         {
                             try
                             {
-                                //var cluster = txdb.Command($"SELECT inE().tAddr AS c FROM {rid}").ToSingle().GetField<List<string>>("c");
                                 for (var i = 0; i < cluster.Count - 1; i++)
                                 {
                                     var cur = addrdb.Command($"UPDATE Node SET Address = '{cluster[i]}' UPSERT RETURN AFTER $current WHERE Address = '{cluster[i]}'").ToSingle();
@@ -48,20 +47,6 @@ namespace fd.Coins.AFistfulOfBitcoins
                     sw.Start();
                     rids = txdb.Command($"SELECT inE().tAddr AS address, $current AS tx FROM (SELECT * FROM Transaction WHERE @rid > {skip} LIMIT {limit} TIMEOUT 20000 RETURN) WHERE cIn > 0").ToList().Select(x => (x.GetField<List<string>>("address"), x.GetField<ORID>("tx"))).ToList();
                     Console.WriteLine(sw.Elapsed);
-                    //// heuristic #1: all addresses that are input to the same transaction are considered to belong to the same owner
-                    //// step 1: get the addresses of transaction inputs from transactions with more than one input
-                    //var clusters = txdb.Command($"SELECT inE().tAddr AS clusters FROM Transaction WHERE cIn > 1").ToList().Select(x => x.GetField<List<string>>("clusters"));
-                    //// step 2: combine the clusters with shared elements
-                    //// step 2.1: build graph out of clusters with edges to next element in cluster
-                    //foreach (var cluster in clusters)
-                    //{
-                    //    for (var i = 0; i < cluster.Count - 1; i++)
-                    //    {
-                    //        var cur = addrdb.Command($"UPDATE Node SET Address = '{cluster[i]}' UPSERT RETURN AFTER $current WHERE Address = '{cluster[i]}'").ToSingle();
-                    //        var next = addrdb.Command($"UPDATE Node SET Address = '{cluster[i + 1]}' UPSERT RETURN AFTER $current WHERE Address = '{cluster[i + 1]}'").ToSingle();
-                    //        var con = addrdb.Create.Edge("Fistful").From(cur).To(next).Set("Tag", "H1").Run();
-                    //    }
-                    //}
                 }
             }
         }

@@ -71,6 +71,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Clustering\Clustering.cs" />
+    <Compile Include="Clustering\Intrinsic\TimeSlots.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Network\BitcoinNetworkConnector.cs" />
     <Compile Include="Data\BlockProvider.cs" />
@@ -101,7 +103,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NBitcoin">
-      <Version>4.1.1.19</Version>
+      <Version>4.1.0.11</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>11.0.2</Version>

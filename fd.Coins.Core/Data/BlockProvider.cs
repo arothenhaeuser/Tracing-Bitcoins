@@ -3,7 +3,6 @@ using NBitcoin.Protocol;
 using Orient.Client;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -226,7 +225,6 @@ namespace fd.Coins.Core.NetworkConnector
                 {
                     foreach (var tx in block.Transactions)
                     {
-
                         AddVertex(tx, blockTime, db);
                     }
                 }

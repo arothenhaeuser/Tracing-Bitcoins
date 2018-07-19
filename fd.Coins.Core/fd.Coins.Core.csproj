@@ -75,6 +75,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Clustering\Clustering.cs" />
+    <Compile Include="Clustering\Intrinsic\TimeSlots.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Network\BitcoinNetworkConnector.cs" />
     <Compile Include="Data\BlockProvider.cs" />

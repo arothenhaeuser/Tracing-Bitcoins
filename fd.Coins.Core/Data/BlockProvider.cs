@@ -181,7 +181,6 @@ namespace fd.Coins.Core.NetworkConnector
                 {
                     foreach (var tx in block.Transactions)
                     {
-
                         AddVertex(tx, blockTime, db);
                     }
                 }

@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace fd.Coins.Core
 {
@@ -20,8 +16,10 @@ namespace fd.Coins.Core
                 }
                 catch (Exception e)
                 {
-                    if(e.Message.Contains("ConcurrentModificationException"))
-                    count--;
+                    if (e.Message.Contains("ConcurrentModificationException"))
+                        count--;
+                    else
+                        throw;
                 }
             }
         }

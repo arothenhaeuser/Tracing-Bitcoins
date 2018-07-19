@@ -62,7 +62,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var nodes = db.Command($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000 TIMEOUT 10000 RETURN").ToList();
+                    var nodes = db.Command($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000").ToList();
                     foreach (var node in nodes)
                     {
                         if (IsCoinbaseTx(node))

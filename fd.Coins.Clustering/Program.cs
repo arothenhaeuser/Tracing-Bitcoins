@@ -13,9 +13,11 @@ namespace fd.Coins.Clustering
     {
         static void Main(string[] args)
         {
-            var timeSlots = new TimeSlots();
-            timeSlots.Run(new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" });
-            timeSlots.ToFile("report");
+            //var timeSlots = new TimeSlots();
+            //timeSlots.Run(new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" });
+            //timeSlots.ToFile("report");
+            var totalAmounts = new TotalAmounts();
+            totalAmounts.Run(new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" });
         }
     }
 }

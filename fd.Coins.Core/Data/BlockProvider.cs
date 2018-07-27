@@ -67,46 +67,44 @@ namespace fd.Coins.Core.NetworkConnector
                     {
                         if (IsCoinbaseTx(node))
                         {
-                            Utils.RetryOnConcurrentFail(3, () =>
-                            {
-                                db.Command($"UPDATE {node.ORID} SET Unlinked = False");
-                                return true;
-                            });
+                            db.Command($"UPDATE {node.ORID} SET Unlinked = False");
                             continue;
                         }
-                        var cIn = GetInputCount(node);
-                        var prevFound = false;
-                        for (var i = 0; i < cIn; i++)
+                        var transaction = db.Transaction;
+                        for (var i = 0; i < GetInputCount(node); i++)
                         {
-                            var inputString = node.GetField<string>($"INPUT{i}");
-                            var prevHash = inputString.Split(':')[0];
-                            var prevN = Int64.Parse(inputString.Split(':')[1]);
-                            var prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = \"{prevHash}\"").ToSingle();
-                            if (prevTx != null)
+                            try
                             {
-                                prevFound = true;
-                                var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
-                                var prevOutN = prevOutString?.Split(':')[0];
-                                var outAddr = prevOutString?.Split(':')[1];
-                                var outAmount = prevOutString != null ? Int64.Parse(prevOutString?.Split(':')[2]) : 0;
-                                Utils.RetryOnConcurrentFail(3, () =>
+                                var inputString = node.GetField<string>($"INPUT{i}");
+                                var prevHash = inputString.Split(':')[0];
+                                var prevN = Int64.Parse(inputString.Split(':')[1]);
+                                var prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = \"{prevHash}\"").ToSingle();
+                                if (prevTx != null)
                                 {
-                                    db.Create.Edge("Link").From(prevTx).To(node).Set("sTx", prevHash).Set("sN", prevN).Set("amount", outAmount).Set("tTx", node.GetField<string>("Hash")).Set("tAddr", outAddr ?? "").Run();
-                                    return true;
-                                });
+                                    var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
+                                    var prevOutN = prevOutString?.Split(':')[0];
+                                    var outAddr = prevOutString?.Split(':')[1];
+                                    var outAmount = prevOutString != null ? Int64.Parse(prevOutString?.Split(':')[2]) : 0;
+                                    var edge = new OEdge() { OClassName = "Link" };
+                                    edge.SetField("sTx", prevHash);
+                                    edge.SetField("sN", prevN);
+                                    edge.SetField("amount", outAmount);
+                                    edge.SetField("tTx", node.GetField<string>("Hash"));
+                                    edge.SetField("tAddr", outAddr ?? "");
+                                    transaction.AddEdge(edge, (OVertex)prevTx, (OVertex)node);
+                                }
+                                else
+                                {
+                                    continue;
+                                }
+                                node.SetField("Unlinked", false);
+                                transaction.Update(node);
+                                transaction.Commit();
                             }
-                            else
+                            catch
                             {
-                                prevFound = false;
+                                transaction.Reset();
                             }
-                        }
-                        if (prevFound)
-                        {
-                            Utils.RetryOnConcurrentFail(3, () =>
-                            {
-                                db.Command($"UPDATE {node.ORID} SET Unlinked = False");
-                                return true;
-                            });
                         }
                     }
                 }
@@ -213,26 +211,11 @@ namespace fd.Coins.Core.NetworkConnector
                 var output = tx.Outputs[i];
                 vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
             }
-            var attempts = 3;
-            while (attempts > 0)
+            Utils.RetryOnConcurrentFail(3, () =>
             {
-                try
-                {
-                    db.Update(vertex).Run();
-                    break;
-                }
-                catch
-                {
-                    if (attempts > 0)
-                    {
-                        attempts--;
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-            }
+                db.Update(vertex).Run();
+                return true; ;
+            });
             return vertex;
         }
 

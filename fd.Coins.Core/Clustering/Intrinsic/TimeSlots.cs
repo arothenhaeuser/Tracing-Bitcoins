@@ -21,11 +21,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
             Recreate();
         }
-        public override void Run(ConnectionOptions mainOptions)
+        public override void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids)
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var timeSlots = mainDB.Command($"SELECT $timeSlot.asLong() AS timeSlot, list(inE().tAddr) AS addresses FROM Transaction LET $timeSlot = BlockTime.format('H') GROUP BY $timeSlot").ToList().Select(x => new KeyValuePair<Int64, List<string>>(x.GetField<Int64>("timeSlot"), x.GetField<List<string>>("addresses"))).ToDictionary(x => x.Key, y => y.Value);
+                var timeSlots = mainDB.Command($"SELECT $timeSlot.asLong() AS timeSlot, list(inE().tAddr) AS addresses FROM [{string.Join(",", rids.Select(x => x.RID))}] LET $timeSlot = BlockTime.format('H') GROUP BY $timeSlot").ToList().Select(x => new KeyValuePair<Int64, List<string>>(x.GetField<Int64>("timeSlot"), x.GetField<List<string>>("addresses"))).ToDictionary(x => x.Key, y => y.Value);
                 Parallel.ForEach(timeSlots.Select(x => x.Value), (addresses) =>
                 {
                     using (var resultDB = new ODatabase(_options))

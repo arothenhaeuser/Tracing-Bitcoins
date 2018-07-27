@@ -16,9 +16,22 @@ namespace fd.Coins.Clustering
             //var timeSlots = new TimeSlots();
             //timeSlots.Run(new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" });
             //timeSlots.ToFile("report");
-            var totalAmounts = new TotalAmounts();
-            totalAmounts.Run(new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" });
-            totalAmounts.ToFile("report");
+            var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
+            using (var txgraph = new ODatabase(txgraphOptions))
+            {
+                var totalAmounts = new TotalAmounts();
+                long skip = 0;
+                long limit = 50000;
+                long total = txgraph.CountRecords;
+                while(skip < total)
+                {
+                    var records = txgraph.Command($"SELECT @rid FROM Transaction SKIP {skip} LIMIT {limit}").ToList();
+                    skip += limit;
+                    totalAmounts.Run(txgraphOptions, records.Select(x => x.GetField<ORID>("rid")));
+                    Console.WriteLine($"{skip} processed.");
+                }
+                totalAmounts.ToFile("report");
+            }
         }
     }
 }

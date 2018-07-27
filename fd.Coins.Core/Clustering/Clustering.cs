@@ -13,7 +13,7 @@ namespace fd.Coins.Core.Clustering
     {
         protected ConnectionOptions _options;
 
-        public abstract void Run(ConnectionOptions mainOptions);
+        public abstract void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids);
         public void ToFile(string path)
         {
             using (var resultDB = new ODatabase(_options))

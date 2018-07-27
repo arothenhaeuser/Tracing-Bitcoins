@@ -13,6 +13,8 @@ namespace fd.Coins.Core
                 {
                     if (p.Invoke())
                         return;
+                    else
+                        count--;
                 }
                 catch (Exception e)
                 {
@@ -22,6 +24,7 @@ namespace fd.Coins.Core
                         throw;
                 }
             }
+            throw new InvalidOperationException($"Operation failed after {attempts} attempts.");
         }
     }
 }

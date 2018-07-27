@@ -26,7 +26,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var totalAmounts = mainDB.Command($"SELECT sum(inE().amount) as total, inE().tAddr as addresses FROM (SELECT * FROM Transaction WHERE Coinbase = false AND Unlinked = false LIMIT 10000) GROUP BY @rid").ToList().Select(x => Tuple.Create(x.GetField<Int64>("total"), x.GetField<List<string>>("addresses")));
+                var totalAmounts = mainDB.Command($"SELECT sum(inE().amount) as total, inE().tAddr as addresses FROM (SELECT * FROM Transaction WHERE Coinbase = false AND Unlinked = false) GROUP BY @rid").ToList().Select(x => ToTuple(x));
                 Parallel.ForEach(totalAmounts.Select(x => x.Item2), (addresses) =>
                 {
                     using (var resultDB = new ODatabase(_options))
@@ -34,14 +34,42 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                         for (var i = 0; i < addresses.Count - 1; i++)
                             Utils.RetryOnConcurrentFail(3, () =>
                             {
-                                var cur = resultDB.Command($"UPDATE Node SET Address = '{addresses[i]}' UPSERT RETURN AFTER $current WHERE Address = '{addresses[i]}'").ToSingle();
-                                var next = resultDB.Command($"UPDATE Node SET Address = '{addresses[i + 1]}' UPSERT RETURN AFTER $current WHERE Address = '{addresses[i + 1]}'").ToSingle();
-                                resultDB.Command($"CREATE EDGE {_options.DatabaseName} FROM {cur.ORID} TO {next.ORID}");
+                                var tx = resultDB.Transaction;
+                                try
+                                {
+                                    var cur = resultDB.Select().From("Node").Where("Address").Equals(addresses[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i]).Run();
+                                    var next = resultDB.Select().From("Node").Where("Address").Equals(addresses[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i + 1]).Run();
+                                    
+                                    tx.AddOrUpdate(cur);
+                                    tx.AddOrUpdate(next);
+                                    tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);
+                                    tx.Commit();
+                                }
+                                catch
+                                {
+                                    tx.Reset();
+                                    return false;
+                                }
                                 return true;
                             });
                     }
                 });
             }
+        }
+
+        private Tuple<Int64, List<string>> ToTuple(ODocument x)
+        {
+            long total = 0;
+            try
+            {
+                total = (Int64)(x["total"]);
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(x.ContainsKey("total"));
+                Console.WriteLine($"{x["total"]} is of type {x["total"].GetType()}. Casting to {total.GetType()} returned: {total}.");//
+            }
+            return Tuple.Create(total, x.GetField<List<string>>("addresses"));
         }
     }
 }

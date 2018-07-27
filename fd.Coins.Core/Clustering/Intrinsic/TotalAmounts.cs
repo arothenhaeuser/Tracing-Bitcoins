@@ -32,6 +32,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                     using (var resultDB = new ODatabase(_options))
                     {
                         for (var i = 0; i < addresses.Count - 1; i++)
+                        {
                             Utils.RetryOnConcurrentFail(3, () =>
                             {
                                 var tx = resultDB.Transaction;
@@ -39,7 +40,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                                 {
                                     var cur = resultDB.Select().From("Node").Where("Address").Equals(addresses[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i]).Run();
                                     var next = resultDB.Select().From("Node").Where("Address").Equals(addresses[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i + 1]).Run();
-                                    
                                     tx.AddOrUpdate(cur);
                                     tx.AddOrUpdate(next);
                                     tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);
@@ -52,6 +52,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                                 }
                                 return true;
                             });
+                        }
                     }
                 });
             }
@@ -64,7 +65,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 total = (Int64)(x["total"]);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(x.ContainsKey("total"));
                 Console.WriteLine($"{x["total"]} is of type {x["total"].GetType()}. Casting to {total.GetType()} returned: {total}.");//

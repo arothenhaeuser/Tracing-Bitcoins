@@ -26,20 +26,35 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var timeSlots = mainDB.Command($"SELECT $timeSlot.asLong() AS timeSlot, list(inE().tAddr) AS addresses FROM Transaction LET $timeSlot = BlockTime.format('H') GROUP BY $timeSlot").ToList().Select(x => new KeyValuePair<Int64, List<string>>(x.GetField<Int64>("timeSlot"), x.GetField<List<string>>("addresses"))).ToDictionary(x => x.Key, y => y.Value);
-                    Parallel.ForEach(timeSlots.Select(x => x.Value), (addresses) =>
+                Parallel.ForEach(timeSlots.Select(x => x.Value), (addresses) =>
+                {
+                    using (var resultDB = new ODatabase(_options))
                     {
-                        using (var resultDB = new ODatabase(_options))
+                        for (var i = 0; i < addresses.Count - 1; i++)
                         {
-                            for (var i = 0; i < addresses.Count - 1; i++)
-                                Utils.RetryOnConcurrentFail(3, () =>
+                            Utils.RetryOnConcurrentFail(3, () =>
+                            {
+                                var tx = resultDB.Transaction;
+                                try
                                 {
-                                    var cur = resultDB.Command($"UPDATE Node SET Address = '{addresses[i]}' UPSERT RETURN AFTER $current WHERE Address = '{addresses[i]}'").ToSingle();
-                                    var next = resultDB.Command($"UPDATE Node SET Address = '{addresses[i + 1]}' UPSERT RETURN AFTER $current WHERE Address = '{addresses[i + 1]}'").ToSingle();
+                                    var cur = resultDB.Select().From("Node").Where("Address").Equals(addresses[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i]).Run();
+                                    var next = resultDB.Select().From("Node").Where("Address").Equals(addresses[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i + 1]).Run();
+                                    tx.AddOrUpdate(cur);
+                                    tx.AddOrUpdate(next);
+                                    tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);
                                     resultDB.Command($"CREATE EDGE {_options.DatabaseName} FROM {cur.ORID} TO {next.ORID}");
-                                    return true;
-                                });
+                                    tx.Commit();
+                                }
+                                catch
+                                {
+                                    tx.Reset();
+                                    return false;
+                                }
+                                return true;
+                            });
                         }
-                    });
+                    }
+                });
             }
         }
     }

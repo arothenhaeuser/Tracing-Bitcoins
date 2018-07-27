@@ -18,6 +18,7 @@ namespace fd.Coins.Clustering
             //timeSlots.ToFile("report");
             var totalAmounts = new TotalAmounts();
             totalAmounts.Run(new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" });
+            totalAmounts.ToFile("report");
         }
     }
 }

@@ -62,7 +62,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var nodes = db.Command($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000").ToList();
+                    var nodes = db.Query<OVertex>($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000");
                     foreach (var node in nodes)
                     {
                         if (IsCoinbaseTx(node))
@@ -78,7 +78,7 @@ namespace fd.Coins.Core.NetworkConnector
                                 var inputString = node.GetField<string>($"INPUT{i}");
                                 var prevHash = inputString.Split(':')[0];
                                 var prevN = Int64.Parse(inputString.Split(':')[1]);
-                                var prevTx = db.Command($"SELECT FROM Transaction WHERE Hash = \"{prevHash}\"").ToSingle();
+                                var prevTx = db.Query<OVertex>($"SELECT FROM Transaction WHERE Hash = \"{prevHash}\"").FirstOrDefault();
                                 if (prevTx != null)
                                 {
                                     var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
@@ -91,17 +91,18 @@ namespace fd.Coins.Core.NetworkConnector
                                     edge.SetField("amount", outAmount);
                                     edge.SetField("tTx", node.GetField<string>("Hash"));
                                     edge.SetField("tAddr", outAddr ?? "");
-                                    transaction.AddEdge(edge, (OVertex)prevTx, (OVertex)node);
+                                    transaction.AddEdge(edge, prevTx, node);
                                 }
                                 else
                                 {
+                                    transaction.Reset();
                                     continue;
                                 }
                                 node.SetField("Unlinked", false);
                                 transaction.Update(node);
                                 transaction.Commit();
                             }
-                            catch
+                            catch (Exception e)
                             {
                                 transaction.Reset();
                             }
@@ -196,11 +197,10 @@ namespace fd.Coins.Core.NetworkConnector
 
         public OVertex AddVertex(Transaction tx, DateTime blockTime, ODatabase db)
         {
-            var vertex = db.Create.Vertex("Transaction")
-                .Set("Hash", tx.GetHash().ToString())
-                .Set("BlockTime", blockTime)
-                .Set("Coinbase", tx.IsCoinBase)
-                .Run();
+            var vertex = new OVertex() { OClassName = "Transaction" };
+            vertex.SetField("Hash", tx.GetHash().ToString());
+            vertex.SetField("BlockTime", blockTime);
+            vertex.SetField("Coinbase", tx.IsCoinBase);
             for (var i = 0; i < tx.Inputs.Count; i++)
             {
                 var input = tx.Inputs[i];
@@ -211,11 +211,8 @@ namespace fd.Coins.Core.NetworkConnector
                 var output = tx.Outputs[i];
                 vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
             }
-            Utils.RetryOnConcurrentFail(3, () =>
-            {
-                db.Update(vertex).Run();
-                return true; ;
-            });
+
+            db.Insert(vertex).Run();
             return vertex;
         }
 

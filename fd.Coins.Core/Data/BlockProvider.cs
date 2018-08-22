@@ -71,14 +71,15 @@ namespace fd.Coins.Core.NetworkConnector
                             continue;
                         }
                         var transaction = db.Transaction;
-                        for (var i = 0; i < GetInputCount(node); i++)
+                        try
                         {
-                            try
+                            for (var i = 0; i < GetInputCount(node); i++)
                             {
+
                                 var inputString = node.GetField<string>($"INPUT{i}");
                                 var prevHash = inputString.Split(':')[0];
                                 var prevN = Int64.Parse(inputString.Split(':')[1]);
-                                var prevTx = db.Query<OVertex>($"SELECT FROM Transaction WHERE Hash = \"{prevHash}\"").FirstOrDefault();
+                                var prevTx = db.Query<OVertex>($"SELECT * FROM Transaction WHERE Hash = \"{prevHash}\"").FirstOrDefault();
                                 if (prevTx != null)
                                 {
                                     var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
@@ -93,19 +94,14 @@ namespace fd.Coins.Core.NetworkConnector
                                     edge.SetField("tAddr", outAddr ?? "");
                                     transaction.AddEdge(edge, prevTx, node);
                                 }
-                                else
-                                {
-                                    transaction.Reset();
-                                    continue;
-                                }
-                                node.SetField("Unlinked", false);
-                                transaction.Update(node);
-                                transaction.Commit();
                             }
-                            catch (Exception e)
-                            {
-                                transaction.Reset();
-                            }
+                            node.SetField("Unlinked", false);
+                            transaction.Update(node);
+                            transaction.Commit();
+                        }
+                        catch (Exception e)
+                        {
+                            transaction.Reset();
                         }
                     }
                 }

@@ -36,7 +36,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                 Console.WriteLine("H2:");
                 var addrIdentTime = new TimeSpan();
                 var dbUpdateTime = new TimeSpan();
-                Parallel.ForEach(records, (record) =>
+                foreach(var record in records)
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
@@ -80,7 +80,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                         sw1.Stop();
                         dbUpdateTime.Add(sw1.Elapsed);
                     }
-                });
+                }
                 Console.WriteLine("Identifying the return address took: " + addrIdentTime);
                 Console.WriteLine("Updating the database took: " + addrIdentTime);
             }
@@ -89,11 +89,12 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         private static string GetChangeAddress(ODocument node)
         {
             var outputs = GetOutputStrings(node);
+            
             var ambigous = false;
             string changeAddress = null;
             if (outputs.Length > 1)
             {
-                if (!node.GetField<bool>("Coinbase") && node.GetField<Int64>("cIn") > 0)
+                if (!node.GetField<bool>("Coinbase") && !node.GetField<bool>("Unlinked"))
                 {
                     foreach (var output in outputs)
                     {

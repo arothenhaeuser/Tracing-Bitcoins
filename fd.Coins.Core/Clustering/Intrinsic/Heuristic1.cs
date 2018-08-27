@@ -27,10 +27,10 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var inGroups = mainDB.Command($"SELECT inE().tAddr AS address FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList().Select(x => x.GetField<List<string>>("address")).ToList();
+                var inGroups = mainDB.Command($"SELECT inE().tAddr AS address FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList().Select(x => x.GetField<List<string>>("address").Distinct().ToList()).ToList();
                 Console.WriteLine($"H1:\n{string.Join("\n", inGroups.Select(x => string.Join(",", x)))}");
                 Console.WriteLine("==========");
-                Parallel.ForEach(inGroups.Where(x => x.Count > 1), (addresses) =>
+                foreach( var addresses in inGroups.Where(x => x.Count > 1))
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
@@ -39,10 +39,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                             Utils.RetryOnConcurrentFail(3, () =>
                             {
                                 var tx = resultDB.Transaction;
+                                OVertex cur = null, next = null;
                                 try
                                 {
-                                    var cur = resultDB.Select().From("Node").Where("Address").Equals(addresses[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i]).Run();
-                                    var next = resultDB.Select().From("Node").Where("Address").Equals(addresses[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i + 1]).Run();
+                                    cur = resultDB.Select().From("Node").Where("Address").Equals(addresses[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i]).Run();
+                                    next = resultDB.Select().From("Node").Where("Address").Equals(addresses[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i + 1]).Run();
                                     tx.AddOrUpdate(cur);
                                     tx.AddOrUpdate(next);
                                     tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);
@@ -51,13 +52,13 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                                 catch
                                 {
                                     tx.Reset();
-                                    return false;
+                                    throw;
                                 }
                                 return true;
                             });
                         }
                     }
-                });
+                }
             }
         }
 

@@ -27,10 +27,10 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var totalAmounts = mainDB.Command($"SELECT sum(inE().amount).asLong() as total, inE().tAddr as addresses FROM (SELECT * FROM [{string.Join(",", rids.Select(x => x.RID))}] WHERE Coinbase = false AND Unlinked = false) GROUP BY total").ToList().Select(x => new KeyValuePair<long, List<string>>(x.GetField<long>("total"),x.GetField<List<string>>("addresses"))).ToDictionary(x => x.Key, y => y.Value.Distinct().ToList());
+                var totalAmounts = mainDB.Command($"SELECT sum(inE().amount).asLong() as total, inE().tAddr as addresses FROM (SELECT * FROM [{string.Join(",", rids.Select(x => x.RID))}] WHERE Coinbase = false AND Unlinked = false) GROUP BY @rid").ToList().Select(x => new KeyValuePair<double, List<string>>(x.GetField<long>("total").RoundToSignificant(),x.GetField<List<string>>("addresses"))).GroupBy(x => x.Key).ToDictionary(x => x.Key, y => y.SelectMany(z => z.Value).Distinct().ToList());
                 Console.WriteLine($"TotalAmounts:\n{string.Join("\n", totalAmounts.Select(x => x.Key + ":" + string.Join(",", x.Value)))}");
                 Console.WriteLine("==========");
-                Parallel.ForEach(totalAmounts.Select(x => x.Value), (addresses) =>
+                foreach(var addresses in totalAmounts.Select(x => x.Value).Where(x => x.Count > 1))
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
@@ -64,7 +64,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                             }
                         }
                     }
-                });
+                }
             }
         }
 

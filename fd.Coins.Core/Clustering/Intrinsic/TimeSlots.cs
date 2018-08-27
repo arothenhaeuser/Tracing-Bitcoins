@@ -28,13 +28,13 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                 var timeSlots = mainDB.Command($"SELECT $timeSlot.asLong() AS timeSlot, list(inE().tAddr) AS addresses FROM [{string.Join(",", rids.Select(x => x.RID))}] LET $timeSlot = BlockTime.format('H') GROUP BY $timeSlot").ToList().Select(x => new KeyValuePair<long, List<string>>(x.GetField<Int64>("timeSlot"), x.GetField<List<string>>("addresses"))).ToDictionary(x => x.Key, y => y.Value.Distinct().ToList());
                 Console.WriteLine($"Timeslots:\n{string.Join("\n", timeSlots.Select(x => x.Key + ":" + string.Join(",", x.Value)))}");
                 Console.WriteLine("==========");
-                Parallel.ForEach(timeSlots.Select(x => x.Value), (addresses) =>
+                foreach(var addresses in timeSlots.Select(x => x.Value))
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
                         for (var i = 0; i < addresses.Count - 1; i++)
                         {
-                            Utils.RetryOnConcurrentFail(3, () =>
+                            Utils.RetryOnConcurrentFail(6, () =>
                             {
                                 var tx = resultDB.Transaction;
                                 try
@@ -55,7 +55,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                             });
                         }
                     }
-                });
+                }
             }
         }
     }

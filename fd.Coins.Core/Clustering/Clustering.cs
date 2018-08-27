@@ -1,11 +1,8 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace fd.Coins.Core.Clustering
 {

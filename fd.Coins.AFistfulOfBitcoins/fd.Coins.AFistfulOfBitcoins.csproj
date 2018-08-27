@@ -57,5 +57,11 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\fd.Coins.Core\fd.Coins.Core.csproj">
+      <Project>{3575C758-07B9-4676-8A22-E9408B49B7C0}</Project>
+      <Name>fd.Coins.Core</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

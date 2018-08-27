@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using fd.Coins.Core.Clustering;
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 
-namespace fd.Coins.AFistfulOfBitcoins
+namespace fd.Coins.Core.Clustering.Intrinsic
 {
     // heuristic #1: all addresses that are input to the same transaction are considered to belong to the same owner
     public class Heuristic1 : Clustering
@@ -15,7 +13,7 @@ namespace fd.Coins.AFistfulOfBitcoins
         public Heuristic1()
         {
             _options = new ConnectionOptions();
-            _options.DatabaseName = "Fistful_H1";
+            _options.DatabaseName = "FistfulH1";
             _options.DatabaseType = ODatabaseType.Graph;
             _options.HostName = "localhost";
             _options.Password = "admin";
@@ -30,6 +28,8 @@ namespace fd.Coins.AFistfulOfBitcoins
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var inGroups = mainDB.Command($"SELECT inE().tAddr AS address FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList().Select(x => x.GetField<List<string>>("address")).ToList();
+                Console.WriteLine($"H1:\n{string.Join("\n", inGroups.Select(x => string.Join(",", x)))}");
+                Console.WriteLine("==========");
                 Parallel.ForEach(inGroups.Where(x => x.Count > 1), (addresses) =>
                 {
                     using (var resultDB = new ODatabase(_options))

@@ -1,12 +1,12 @@
-﻿using fd.Coins.Core.Clustering;
-using Orient.Client;
+﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace fd.Coins.AFistfulOfBitcoins
+namespace fd.Coins.Core.Clustering.Intrinsic
 {
     // heuristic #2: The change address of each transaction is considered to belong to the same user as the inputs. Change addresses are identified by checking the corresponding output against four conditions:
     // 1. This is the only output referencing this address
@@ -18,7 +18,7 @@ namespace fd.Coins.AFistfulOfBitcoins
         public Heuristic2()
         {
             _options = new ConnectionOptions();
-            _options.DatabaseName = "Fistful_H2";
+            _options.DatabaseName = "FistfulH2";
             _options.DatabaseType = ODatabaseType.Graph;
             _options.HostName = "localhost";
             _options.Password = "admin";
@@ -33,40 +33,56 @@ namespace fd.Coins.AFistfulOfBitcoins
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var records = mainDB.Command($"SELECT * FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList();
-                Parallel.ForEach(records, (transaction) =>
+                Console.WriteLine("H2:");
+                var addrIdentTime = new TimeSpan();
+                var dbUpdateTime = new TimeSpan();
+                Parallel.ForEach(records, (record) =>
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
                         // can we identify a return address?
-                        var addr = GetChangeAddress(transaction);
+                        var sw = new Stopwatch();
+                        sw.Start();
+                        var addr = GetChangeAddress(record);
+                        sw.Stop();
+                        addrIdentTime.Add(sw.Elapsed);
+                        var sw1 = new Stopwatch();
+                        sw1.Start();
                         if (addr != null)
                         {
                             Utils.RetryOnConcurrentFail(3, () =>
                             {
-                                var tx = resultDB.Transaction;
-                                try
+                                using (var mainDBp = new ODatabase(mainOptions))
                                 {
-                                    var returnNode = resultDB.Select().From("Node").Where("Address").Equals(addr)?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addr).Run();
-                                    tx.AddOrUpdate(returnNode);
-                                    var sourceAddresses = mainDB.Command($"SELECT inE().tAddr AS address FROM {transaction.ORID}").ToSingle().GetField<List<string>>("address").ToList();
-                                    foreach(var address in sourceAddresses)
+                                    var tx = resultDB.Transaction;
+                                    try
                                     {
-                                        var sourceNode = resultDB.Select().From("Node").Where("Address").Equals(address)?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", address).Run();
-                                        tx.AddOrUpdate(sourceNode);
-                                        tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, returnNode, sourceNode);
+                                        var returnNode = resultDB.Select().From("Node").Where("Address").Equals(addr)?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addr).Run();
+                                        tx.AddOrUpdate(returnNode);
+                                        var sourceAddresses = mainDBp.Command($"SELECT inE().tAddr AS address FROM {record.ORID}").ToSingle().GetField<List<string>>("address").ToList();
+                                        foreach (var address in sourceAddresses)
+                                        {
+                                            var sourceNode = resultDB.Select().From("Node").Where("Address").Equals(address)?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", address).Run();
+                                            tx.AddOrUpdate(sourceNode);
+                                            tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, returnNode, sourceNode);
+                                        }
+                                        tx.Commit();
                                     }
-                                    tx.Commit();
+                                    catch
+                                    {
+                                        tx.Reset();
+                                        return false;
+                                    }
+                                    return true;
                                 }
-                                catch
-                                {
-                                    tx.Reset();
-                                    return false;
-                                }
-                                return true;
                             });
                         }
+                        sw1.Stop();
+                        dbUpdateTime.Add(sw1.Elapsed);
                     }
                 });
+                Console.WriteLine("Identifying the return address took: " + addrIdentTime);
+                Console.WriteLine("Updating the database took: " + addrIdentTime);
             }
         }
 

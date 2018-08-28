@@ -16,7 +16,7 @@ namespace fd.Coins.Evaluation
     {
         static void Main(string[] args)
         {
-            var evalConf = ReadConfig("conf.txt");
+            var evalConf = ReadConfig(@"..\..\..\report\conf.txt");
             var gold = new List<List<string>>();
             gold = File.ReadAllLines(evalConf.Gold).Select(x => x.Split('\t').ToList()).ToList();
             var c1 = new List<List<string>>();

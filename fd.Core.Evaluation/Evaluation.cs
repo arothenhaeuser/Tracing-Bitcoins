@@ -14,8 +14,8 @@ namespace fd.Coins.Evaluation
             var n = clustering1.SelectMany(x => x).Union(clustering2.SelectMany(x => x)).Count();
             double N = n * (n - 1) / 2;
 
-            double a = pairs1.Intersect(pairs2, new ArrayComparer<T>()).Count();
-            var b = N - pairs1.Union(pairs2, new ArrayComparer<T>()).Count();
+            double a = pairs1.Intersect(pairs2, new PairComparer<T>()).Count();
+            var b = N - pairs1.Union(pairs2, new PairComparer<T>()).Count();
 
             return (a + b) / N;
         }

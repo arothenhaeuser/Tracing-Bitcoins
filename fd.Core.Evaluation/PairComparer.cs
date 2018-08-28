@@ -4,23 +4,20 @@ using System.Linq;
 
 namespace fd.Coins.Evaluation
 {
-    public class ArrayComparer<T> : IEqualityComparer<T[]>
+    public class PairComparer<T> : IEqualityComparer<T[]>
     {
+        // pairs need to be sorted
         public bool Equals(T[] x, T[] y)
         {
-            if (x.SequenceEqual(y)) return true;
-            Array.Sort(x);
-            Array.Sort(y);
-            return x.SequenceEqual(y);
+            return GetHashCode(x) == GetHashCode(y); ;
         }
 
         public int GetHashCode(T[] x)
         {
-            Array.Sort(x);
             var h = 0;
             foreach (var elem in x)
             {
-                h = h ^ x.GetHashCode();
+                h = h ^ elem.GetHashCode();
             }
             return h;
         }

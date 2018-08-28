@@ -28,8 +28,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var inGroups = mainDB.Command($"SELECT inE().tAddr AS address FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList().Select(x => x.GetField<List<string>>("address").Distinct().ToList()).ToList();
-                Console.WriteLine($"H1:\n{string.Join("\n", inGroups.Select(x => string.Join(",", x)))}");
-                Console.WriteLine("==========");
                 foreach( var addresses in inGroups.Where(x => x.Count > 1))
                 {
                     using (var resultDB = new ODatabase(_options))
@@ -61,28 +59,5 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                 }
             }
         }
-
-        //private void PrepareDatabase()
-        //{
-        //    using (var txdb = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "root", "root"))
-        //    {
-        //        try
-        //        {
-        //            txdb.Command("CREATE PROPERTY Transaction.cIn IF NOT EXISTS LONG");
-        //            if (!txdb.Command("SELECT expand(indexes.name) FROM metadata:indexmanager").ToList().Select(x => x.GetField<string>("value")).Contains("IndexForCIn"))
-        //            {
-        //                Task.Run(() =>
-        //                {
-        //                    txdb.Command("CREATE INDEX IndexForCIn ON Transaction (cIn) NOTUNIQUE");
-        //                });
-        //                txdb.Command("UPDATE Transaction SET cIn = inE().size()");
-        //            }
-        //        }
-        //        catch
-        //        {
-        //            throw;
-        //        }
-        //    }
-        //}
     }
 }

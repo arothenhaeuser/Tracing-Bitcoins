@@ -26,8 +26,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var timeSlots = mainDB.Command($"SELECT $timeSlot.asLong() AS timeSlot, list(inE().tAddr) AS addresses FROM [{string.Join(",", rids.Select(x => x.RID))}] LET $timeSlot = BlockTime.format('H') GROUP BY $timeSlot").ToList().Select(x => new KeyValuePair<long, List<string>>(x.GetField<Int64>("timeSlot"), x.GetField<List<string>>("addresses"))).ToDictionary(x => x.Key, y => y.Value.Distinct().ToList());
-                Console.WriteLine($"Timeslots:\n{string.Join("\n", timeSlots.Select(x => x.Key + ":" + string.Join(",", x.Value)))}");
-                Console.WriteLine("==========");
                 foreach(var addresses in timeSlots.Select(x => x.Value))
                 {
                     using (var resultDB = new ODatabase(_options))

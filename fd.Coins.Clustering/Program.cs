@@ -19,13 +19,13 @@ namespace fd.Coins.Clustering
                 var h1 = new Heuristic1();
                 var h2 = new Heuristic2();
 
-                long skip = 0;
-                long limit = 5000;
+                long skip = 5285612;
+                long limit = 20000;
                 long total = txgraph.CountRecords;
 
-                while (skip < 5000/*total*/)
+                while (skip < 5285613/*total*/)
                 {
-                    var rids = txgraph.Command("SELECT @rid FROM Transaction WHERE @rid > #13:5285676 LIMIT 10"/*$"SELECT @rid FROM Transaction SKIP {skip} LIMIT {limit}"*/).ToList().Select(x => x.GetField<ORID>("rid")).ToList();
+                    var rids = txgraph.Command($"SELECT @rid FROM Transaction SKIP {skip} LIMIT {limit}").ToList().Select(x => x.GetField<ORID>("rid")).ToList();
                     skip += limit;
                     totalAmounts.Run(txgraphOptions, rids);
                     timeSlots.Run(txgraphOptions, rids);

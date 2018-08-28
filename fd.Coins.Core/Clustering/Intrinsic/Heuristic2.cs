@@ -33,21 +33,12 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var records = mainDB.Command($"SELECT * FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList();
-                Console.WriteLine("H2:");
-                var addrIdentTime = new TimeSpan();
-                var dbUpdateTime = new TimeSpan();
                 foreach(var record in records)
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
                         // can we identify a return address?
-                        var sw = new Stopwatch();
-                        sw.Start();
                         var addr = GetChangeAddress(record);
-                        sw.Stop();
-                        addrIdentTime.Add(sw.Elapsed);
-                        var sw1 = new Stopwatch();
-                        sw1.Start();
                         if (addr != null)
                         {
                             Utils.RetryOnConcurrentFail(3, () =>
@@ -77,12 +68,8 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                                 }
                             });
                         }
-                        sw1.Stop();
-                        dbUpdateTime.Add(sw1.Elapsed);
                     }
                 }
-                Console.WriteLine("Identifying the return address took: " + addrIdentTime);
-                Console.WriteLine("Updating the database took: " + addrIdentTime);
             }
         }
 
@@ -104,7 +91,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                             var inputAddresses = db.Command($"SELECT tAddr FROM (SELECT expand(inE()) FROM {node.ORID})").ToList().Select(x => x.GetField<string>("tAddr"));
                             if (!inputAddresses.Contains(outputAddress))
                             {
-                                if (db.Command($"SELECT count(*) FROM Link WHERE tAddr = '{outputAddress}'").ToSingle().GetField<Int64>("count") == 1)
+                                if (db.Command($"SELECT count(*) FROM Link WHERE tAddr = '{outputAddress}'").ToSingle().GetField<Int64>("count") == 1) // PERFORMANCE!
                                 {
                                     if (changeAddress == null)
                                     {

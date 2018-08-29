@@ -9,7 +9,9 @@ namespace fd.Coins.Evaluation
         // pairs need to be sorted
         public bool Equals(T[] x, T[] y)
         {
-            return GetHashCode(x) == GetHashCode(y); ;
+            var r1 = Comparer<T>.Default.Compare(x[0], y[0]) == 0;
+            var r2 = Comparer<T>.Default.Compare(x[1], y[1]) == 0;
+            return r1 && r2;
         }
 
         public int GetHashCode(T[] x)

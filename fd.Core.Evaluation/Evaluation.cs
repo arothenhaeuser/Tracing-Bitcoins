@@ -15,7 +15,7 @@ namespace fd.Coins.Evaluation
             double N = n * (n - 1) / 2;
 
             double a = pairs1.Intersect(pairs2, new PairComparer<T>()).Count();
-            var b = N - pairs1.Union(pairs2, new PairComparer<T>()).Count();
+            var b = N - (pairs1.Count() + pairs2.Count() - a);
 
             return (a + b) / N;
         }
@@ -26,7 +26,6 @@ namespace fd.Coins.Evaluation
             var y = clustering2.Count();
             var c1 = clustering1.ToArray();
             var c2 = clustering2.ToArray();
-            var n = clustering1.SelectMany(item => item).Union(clustering2.SelectMany(item => item)).Count();
             var contingencyTable = new int[x][];
             for (var i = 0; i < x; i++)
             {
@@ -46,6 +45,7 @@ namespace fd.Coins.Evaluation
             {
                 B += NChooseK(contingencyTable.Select(row => row[j]).Sum(), 2);
             }
+            var n = contingencyTable.SelectMany(items => items).Sum();
             D = NChooseK(n, 2);
             return (C-(A*B/D))/(((A+B)/2)-(A * B /D));
         }

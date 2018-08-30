@@ -3,6 +3,7 @@ using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace fd.Coins.Clustering
 {
@@ -19,24 +20,39 @@ namespace fd.Coins.Clustering
                 var h1 = new Heuristic1();
                 var h2 = new Heuristic2();
 
-                long skip = 5285612;
-                long limit = 20000;
+                long skip = 3772550;
+                long limit = 5000;
                 long total = txgraph.CountRecords;
 
-                while (skip < 5285613/*total*/)
+                while (skip < total)
                 {
                     var rids = txgraph.Command($"SELECT @rid FROM Transaction SKIP {skip} LIMIT {limit}").ToList().Select(x => x.GetField<ORID>("rid")).ToList();
                     skip += limit;
-                    totalAmounts.Run(txgraphOptions, rids);
-                    timeSlots.Run(txgraphOptions, rids);
-                    h1.Run(txgraphOptions, rids);
-                    h2.Run(txgraphOptions, rids);
+                    var tTotalAmounts = Task.Run(() =>
+                    {
+                        totalAmounts.Run(txgraphOptions, rids);
+                    });
+                    var tTimeSlots = Task.Run(() =>
+                    {
+                        timeSlots.Run(txgraphOptions, rids);
+                    });
+                    var tH1 = Task.Run(() => {
+                        h1.Run(txgraphOptions, rids);
+                    });
+                    var tH2 = Task.Run(() => {
+                        h2.Run(txgraphOptions, rids);
+                    });
+                    Task.WaitAll(tTotalAmounts, tTimeSlots, tH1, tH2);
+                    totalAmounts.ToFileGroups($"report_{skip - limit}-{skip}");
+                    timeSlots.ToFileGroups($"report_{skip - limit}-{skip}");
+                    h1.ToFileChained($"report_{skip - limit}-{skip}");
+                    h2.ToFileChained($"report_{skip - limit}-{skip}");
                     Console.WriteLine($"{skip} processed.");
                 }
-                totalAmounts.ToFile("report");
-                timeSlots.ToFile("report");
-                h1.ToFile("report");
-                h2.ToFile("report");
+                totalAmounts.ToFileGroups("report");
+                timeSlots.ToFileGroups("report");
+                h1.ToFileChained("report");
+                h2.ToFileChained("report");
             }
 
             Console.Read();

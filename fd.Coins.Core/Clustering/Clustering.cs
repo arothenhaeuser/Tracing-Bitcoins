@@ -11,7 +11,7 @@ namespace fd.Coins.Core.Clustering
         protected ConnectionOptions _options;
 
         public abstract void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids);
-        public void ToFile(string path)
+        public void ToFileChained(string path)
         {
             using (var resultDB = new ODatabase(_options))
             {
@@ -24,6 +24,20 @@ namespace fd.Coins.Core.Clustering
                     var cluster = resultDB.Command($"TRAVERSE * FROM {root.RID}").ToList().Select(x => x.GetField<string>("Address")).Where(x => !string.IsNullOrEmpty(x));
                     if (cluster.Count() > 1)
                         addrClusters.Add(cluster);
+                }
+                Directory.CreateDirectory(path);
+                File.WriteAllLines(Path.Combine(path, _options.DatabaseName + ".txt"), addrClusters.Select(x => string.Join("\t", x)));
+            }
+        }
+        public void ToFileGroups(string path)
+        {
+            using (var resultDB = new ODatabase(_options))
+            {
+                var addrClusters = new List<IEnumerable<string>>();
+                var clusters = resultDB.Command("SELECT distinct(list(traversedVertex(0).Address, traversedVertex(1).Address)) AS pair FROM (TRAVERSE * FROM V WHILE $depth < 3) WHERE traversedElement(2) IS NOT NULL").ToList().Select(x => x.GetField<List<string>>("pair")).Where(x => x.Count == 2).ToLookup(k => k.First(), v => v.Last());
+                foreach (var cluster in clusters)
+                {
+                    addrClusters.Add(cluster.ToList());
                 }
                 Directory.CreateDirectory(path);
                 File.WriteAllLines(Path.Combine(path, _options.DatabaseName + ".txt"), addrClusters.Select(x => string.Join("\t", x)));

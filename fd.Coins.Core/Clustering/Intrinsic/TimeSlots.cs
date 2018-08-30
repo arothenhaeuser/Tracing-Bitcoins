@@ -3,7 +3,6 @@ using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
 {
@@ -26,25 +25,28 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var timeSlots = mainDB.Command($"SELECT $timeSlot.asLong() AS timeSlot, list(inE().tAddr) AS addresses FROM [{string.Join(",", rids.Select(x => x.RID))}] LET $timeSlot = BlockTime.format('H') GROUP BY $timeSlot").ToList().Select(x => new KeyValuePair<long, List<string>>(x.GetField<Int64>("timeSlot"), x.GetField<List<string>>("addresses"))).ToDictionary(x => x.Key, y => y.Value.Distinct().ToList());
-                foreach(var addresses in timeSlots.Select(x => x.Value))
+                foreach(var cluster in timeSlots)
                 {
+                    var addresses = cluster.Value;
+                    var time = cluster.Key;
                     using (var resultDB = new ODatabase(_options))
                     {
-                        for (var i = 0; i < addresses.Count - 1; i++)
+                        OVertex root = null;
+                        for (var i = 0; i < addresses.Count; i++)
                         {
-                            Utils.RetryOnConcurrentFail(6, () =>
+                            Utils.RetryOnConcurrentFail(3, () =>
                             {
                                 var tx = resultDB.Transaction;
                                 try
                                 {
+                                    root = resultDB.Select().From("Node").Where("Time").Equals(time)?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Time", time).Set("Address", time.GetHashCode().ToString()).Run();
+                                    tx.AddOrUpdate(root);
                                     var cur = resultDB.Select().From("Node").Where("Address").Equals(addresses[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i]).Run();
-                                    var next = resultDB.Select().From("Node").Where("Address").Equals(addresses[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i + 1]).Run();
                                     tx.AddOrUpdate(cur);
-                                    tx.AddOrUpdate(next);
-                                    tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);
+                                    tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, root, cur);
                                     tx.Commit();
                                 }
-                                catch
+                                catch(Exception e)
                                 {
                                     tx.Reset();
                                     return false;

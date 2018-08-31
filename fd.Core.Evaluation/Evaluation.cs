@@ -6,12 +6,15 @@ namespace fd.Coins.Evaluation
 {
     public static class Evaluation
     {
-        public static double RandIndex<T>(IEnumerable<IEnumerable<T>> clustering1, IEnumerable<IEnumerable<T>> clustering2)
+        public static double RandIndex<T>(IEnumerable<IEnumerable<T>> gold, IEnumerable<IEnumerable<T>> clustering)
         {
-            var pairs1 = clustering1.SelectMany(c => c.SelectMany(x => c, (x, y) => new T[] { x, y })).Where(p => Comparer<T>.Default.Compare(p[0], p[1]) < 0);
-            var pairs2 = clustering2.SelectMany(c => c.SelectMany(x => c, (x, y) => new T[] { x, y })).Where(p => Comparer<T>.Default.Compare(p[0], p[1]) < 0);
+            var known = gold.SelectMany(x => x).Intersect(clustering.SelectMany(x => x));
+            var rg = gold.Select(x => x.Intersect(known)).Where(x => x.Count() > 1);
+            var rc = clustering.Select(x => x.Intersect(known)).Where(x => x.Count() > 1);
+            var pairs1 = rg.SelectMany(c => c.SelectMany(x => c, (x, y) => new T[] { x, y })).Where(p => Comparer<T>.Default.Compare(p[0], p[1]) < 0);
+            var pairs2 = rc.SelectMany(c => c.SelectMany(x => c, (x, y) => new T[] { x, y })).Where(p => Comparer<T>.Default.Compare(p[0], p[1]) < 0);
 
-            var n = clustering1.SelectMany(x => x).Union(clustering2.SelectMany(x => x)).Count();
+            var n = gold.SelectMany(x => x).Union(rc.SelectMany(x => x)).Count();
             double N = n * (n - 1) / 2;
 
             double a = pairs1.Intersect(pairs2, new PairComparer<T>()).Count();
@@ -20,28 +23,31 @@ namespace fd.Coins.Evaluation
             return (a + b) / N;
         }
 
-        public static double AdjustedRandIndex<T>(IEnumerable<IEnumerable<T>> clustering1, IEnumerable<IEnumerable<T>> clustering2)
+        public static double AdjustedRandIndex<T>(IEnumerable<IEnumerable<T>> gold, IEnumerable<IEnumerable<T>> clustering)
         {
-            var x = clustering1.Count();
-            var y = clustering2.Count();
-            var c1 = clustering1.ToArray();
-            var c2 = clustering2.ToArray();
-            var contingencyTable = new int[x][];
-            for (var i = 0; i < x; i++)
+            var known = gold.SelectMany(x => x).Intersect(clustering.SelectMany(x => x));
+            var rg = gold.Select(x => x.Intersect(known)).Where(x => x.Count() > 1);
+            var rc = clustering.Select(x => x.Intersect(known)).Where(x => x.Count() > 1);
+            var x1 = rg.Count();
+            var y1 = rc.Count();
+            var c1 = rg.ToArray();
+            var c2 = rc.ToArray();
+            var contingencyTable = new int[x1][];
+            for (var i = 0; i < x1; i++)
             {
-                contingencyTable[i] = new int[y];
+                contingencyTable[i] = new int[y1];
             }
             double A = 0, B = 0, C = 0, D = 0;
-            for (var i = 0; i < x; i++)
+            for (var i = 0; i < x1; i++)
             {
-                for (var j = 0; j < y; j++)
+                for (var j = 0; j < y1; j++)
                 {
                     contingencyTable[i][j] = c1[i].Intersect(c2[j]).Count();
                     C += NChooseK(contingencyTable[i][j], 2);
                 }
                 A += NChooseK(contingencyTable[i].Sum(), 2);
             }
-            for(int j = 0; j < y; j++)
+            for(int j = 0; j < y1; j++)
             {
                 B += NChooseK(contingencyTable.Select(row => row[j]).Sum(), 2);
             }

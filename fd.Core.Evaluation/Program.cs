@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -18,19 +19,23 @@ namespace fd.Coins.Evaluation
         {
             var evalConf = ReadConfig(@"..\..\..\report\conf.txt");
             var gold = new List<List<string>>();
-            gold = File.ReadAllLines(evalConf.Gold).Select(x => x.Split('\t').ToList()).ToList();
+            gold = File.ReadAllLines(evalConf.Gold).Select(x => x.Trim().Split('\t').ToList()).ToList();
             var c1 = new List<List<string>>();
+            var sw = new Stopwatch();
+            sw.Start();
             for(var i = 0; i < evalConf.Clusters.Count(); i++)
             {
-                c1 = File.ReadAllLines(evalConf.Clusters[i]).Select(x => x.Split('\t').ToList()).ToList();
+                c1 = File.ReadAllLines(evalConf.Clusters[i]).Select(x => x.Trim().Split('\t').ToList()).ToList();
 
-                Console.WriteLine("RandIndex:\t\t" + Evaluation.RandIndex(c1, gold));
-                Console.WriteLine("AdjustedRandIndex:\t" + Evaluation.AdjustedRandIndex(c1, gold));
-                Console.WriteLine("Accuracy:\t\t" + Evaluation.Accuracy(c1, gold));
-                Console.WriteLine("Precision:\t\t" + Evaluation.Precision(c1, gold));
-                Console.WriteLine("Recall:\t\t\t" + Evaluation.Recall(c1, gold));
-                Console.WriteLine("F1:\t\t\t" + Evaluation.F1(c1, gold));
+                Console.WriteLine("RandIndex:\t\t" + Evaluation.RandIndex(gold, c1));
+                Console.WriteLine("AdjustedRandIndex:\t" + Evaluation.AdjustedRandIndex(gold, c1));
+                Console.WriteLine("Accuracy:\t\t" + Evaluation.Accuracy(gold, c1));
+                Console.WriteLine("Precision:\t\t" + Evaluation.Precision(gold, c1));
+                Console.WriteLine("Recall:\t\t\t" + Evaluation.Recall(gold, c1));
+                Console.WriteLine("F1:\t\t\t" + Evaluation.F1(gold, c1));
             }
+            sw.Stop();
+            Console.WriteLine(sw.Elapsed);
 
             Console.Read();
         }

@@ -62,7 +62,7 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var nodes = db.Query<OVertex>($"SELECT FROM Transaction WHERE Unlinked = True LIMIT 50000");
+                    var nodes = db.Select().From("Transaction").Where("Unlinked").Equals(true).Limit(50000).ToList<OVertex>();
                     foreach (var node in nodes)
                     {
                         if (IsCoinbaseTx(node))
@@ -75,7 +75,6 @@ namespace fd.Coins.Core.NetworkConnector
                         {
                             for (var i = 0; i < GetInputCount(node); i++)
                             {
-
                                 var inputString = node.GetField<string>($"INPUT{i}");
                                 var prevHash = inputString.Split(':')[0];
                                 var prevN = Int64.Parse(inputString.Split(':')[1]);
@@ -92,11 +91,11 @@ namespace fd.Coins.Core.NetworkConnector
                                     edge.SetField("amount", outAmount);
                                     edge.SetField("tTx", node.GetField<string>("Hash"));
                                     edge.SetField("tAddr", outAddr ?? "");
-                                    transaction.AddEdge(edge, prevTx, node);
+                                    transaction.AddEdge(edge, prevTx, db.Select().From($"{node.ORID}").ToList<OVertex>().First());
                                 }
                             }
-                            node.SetField("Unlinked", false);
-                            transaction.Update(node);
+                            //node.SetField("Unlinked", false);
+                            //transaction.Update(node);
                             transaction.Commit();
                         }
                         catch (Exception e)
@@ -105,8 +104,8 @@ namespace fd.Coins.Core.NetworkConnector
                         }
                     }
                 }
+                await Task.Delay(60000);
             }
-            await Task.Delay(60000);
         }
 
         private int GetInputCount(ODocument node)
@@ -144,24 +143,16 @@ namespace fd.Coins.Core.NetworkConnector
                         .Skip(_height)
                         .Take(50000)
                         .Select(x => x.HashBlock);
-                    try
+                    foreach (var block in _localClient.GetBlocks(hashes))
                     {
-                        foreach (var block in _localClient.GetBlocks(hashes))
+                        if (ProcessBlock(block))
                         {
-                            if (ProcessBlock(block))
-                            {
-                                _height++;
-                            }
-                            else
-                            {
-                                throw new InvalidOperationException($"Processing of block failed. ({block.GetHash()})");
-                            }
+                            _height++;
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        Error(e);
-                        return;
+                        else
+                        {
+                            throw new InvalidOperationException($"Processing of block failed. ({block.GetHash()})");
+                        }
                     }
                 }
                 await Task.Delay(60000);
@@ -170,23 +161,42 @@ namespace fd.Coins.Core.NetworkConnector
         private bool ProcessBlock(Block block)
         {
             var blockTime = block.Header.BlockTime.LocalDateTime;
-            try
+            using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
             {
-                using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
+                db.DatabaseProperties.ORID = new ORID();
+                var tx = db.Transaction;
+                try
                 {
-                    foreach (var tx in block.Transactions)
+                    foreach (var transaction in block.Transactions)
                     {
-                        AddVertex(tx, blockTime, db);
+                        var vertex = new OVertex() { OClassName = "Transaction" };
+                        vertex.SetField("Hash", transaction.GetHash().ToString());
+                        vertex.SetField("BlockTime", blockTime);
+                        vertex.SetField("Coinbase", transaction.IsCoinBase);
+                        for (var i = 0; i < transaction.Inputs.Count; i++)
+                        {
+                            var input = transaction.Inputs[i];
+                            vertex.SetField($"INPUT{i}", $"{input.PrevOut.Hash}:{input.PrevOut.N}");
+                        }
+                        for (var i = 0; i < transaction.Outputs.Count; i++)
+                        {
+                            var output = transaction.Outputs[i];
+                            vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
+                        }
+                        tx.Add(vertex);
+                    }
+                    tx.Commit();
+                }
+                catch (Exception e)
+                {
+                    if (e.Message.Contains("ORecordDuplicatedException"))
+                        return true; // duplicate tx ids existed in the early days of bitcoin
+                    else
+                    {
+                        tx.Reset();
+                        return false;
                     }
                 }
-            }
-            catch (OException oe)
-            {
-                return true; // duplicate txids occured in the early years of bitcoin
-            }
-            catch (Exception e)
-            {
-                throw;
             }
             return true;
         }
@@ -293,7 +303,6 @@ namespace fd.Coins.Core.NetworkConnector
                         db.Command("ALTER PROPERTY Transaction.Coinbase DEFAULT False");
                         db.Command("CREATE PROPERTY Transaction.Unlinked BOOLEAN");
                         db.Command("ALTER PROPERTY Transaction.Unlinked DEFAULT True");
-                        db.Command("CREATE INDEX IndexForUnlinked ON Transaction (Unlinked) NOTUNIQUE");
                         db.Command("CREATE CLASS Link EXTENDS E");
                         db.Command("CREATE PROPERTY Link.sTx STRING");
                         db.Command("CREATE PROPERTY Link.sN LONG");

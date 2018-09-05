@@ -1,8 +1,10 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Web.Script.Serialization;
 
 namespace fd.Coins.Core.Clustering
 {
@@ -10,7 +12,16 @@ namespace fd.Coins.Core.Clustering
     {
         protected ConnectionOptions _options;
 
+        protected int _dimension;
+
+        protected IDictionary _result;
+
         public abstract void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids);
+        public void ToFile(string path)
+        {
+            Directory.CreateDirectory(path);
+            File.WriteAllText(Path.Combine(path, _options.DatabaseName + ".txt"), new JavaScriptSerializer().Serialize(_result));
+        }
         public void ToFileChained(string path)
         {
             using (var resultDB = new ODatabase(_options))

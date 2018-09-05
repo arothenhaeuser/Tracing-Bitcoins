@@ -17,8 +17,8 @@ namespace fd.Coins.Clustering
             {
                 var totalAmounts = new TotalAmounts();
                 var timeSlots = new TimeSlots();
-                var h1 = new Heuristic1();
-                var h2 = new Heuristic2();
+                //var h1 = new Heuristic1();
+                //var h2 = new Heuristic2();
 
                 long skip = 3772550;
                 long limit = 5000;
@@ -36,23 +36,23 @@ namespace fd.Coins.Clustering
                     {
                         timeSlots.Run(txgraphOptions, rids);
                     });
-                    var tH1 = Task.Run(() => {
-                        h1.Run(txgraphOptions, rids);
-                    });
-                    var tH2 = Task.Run(() => {
-                        h2.Run(txgraphOptions, rids);
-                    });
-                    Task.WaitAll(tTotalAmounts, tTimeSlots, tH1, tH2);
-                    totalAmounts.ToFileGroups($"report_{skip - limit}-{skip}");
-                    timeSlots.ToFileGroups($"report_{skip - limit}-{skip}");
-                    h1.ToFileChained($"report_{skip - limit}-{skip}");
-                    h2.ToFileChained($"report_{skip - limit}-{skip}");
+                    //var tH1 = Task.Run(() => {
+                    //    h1.Run(txgraphOptions, rids);
+                    //});
+                    //var tH2 = Task.Run(() => {
+                    //    h2.Run(txgraphOptions, rids);
+                    //});
+                    Task.WaitAll(tTotalAmounts, tTimeSlots/*, tH1, tH2*/);
+                    totalAmounts.ToFile($"report_{skip - limit}-{skip}");
+                    timeSlots.ToFile($"report_{skip - limit}-{skip}");
+                    //h1.ToFileChained($"report_{skip - limit}-{skip}");
+                    //h2.ToFileChained($"report_{skip - limit}-{skip}");
                     Console.WriteLine($"{skip} processed.");
                 }
-                totalAmounts.ToFileGroups("report");
-                timeSlots.ToFileGroups("report");
-                h1.ToFileChained("report");
-                h2.ToFileChained("report");
+                totalAmounts.ToFile("report");
+                timeSlots.ToFile("report");
+                //h1.ToFileChained("report");
+                //h2.ToFileChained("report");
             }
 
             Console.Read();

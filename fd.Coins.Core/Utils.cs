@@ -37,14 +37,14 @@ namespace fd.Coins.Core
             return (i * Math.Pow(10, f - 2)) < 1 ? 0 : (i * Math.Pow(10, f - 2));
         }
 
-        public static double RoundToSignificant(this long i)
+        public static long RoundToSignificant(this long i)
         {
             var f = Math.Floor(Math.Log10(Math.Abs(i)) + 1);
             while (i >= 100)
             {
                 i /= 10;
             }
-            return (i * Math.Pow(10, f - 2)) < 1 ? 0 : (i * Math.Pow(10, f - 2));
+            return (long)((i * Math.Pow(10, f - 2)) < 1 ? 0 : (i * Math.Pow(10, f - 2)));
         }
 
         public static double ToSignificantFigures(this int i)

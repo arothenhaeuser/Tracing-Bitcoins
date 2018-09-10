@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -58,6 +59,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                     }
                 }
             }
+        }
+
+        protected override void AddToResult<TKey, TValue>(Dictionary<TKey, TValue> query)
+        {
+            throw new NotImplementedException();
         }
     }
 }

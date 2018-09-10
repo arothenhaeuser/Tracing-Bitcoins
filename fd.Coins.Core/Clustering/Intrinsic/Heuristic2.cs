@@ -1,6 +1,7 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -127,6 +128,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                 list.Add(node.GetField<string>($"OUTPUT{index++}"));
             }
             return list.ToArray();
+        }
+
+        protected override void AddToResult<TKey, TValue>(Dictionary<TKey, TValue> query)
+        {
+            throw new NotImplementedException();
         }
     }
 }

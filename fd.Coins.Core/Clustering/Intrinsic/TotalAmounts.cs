@@ -1,5 +1,6 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -19,7 +20,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
             _dimension = 0;
 
-            //Recreate();
+            _result = new Dictionary<string, long>();
         }
         public override void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids)
         {
@@ -58,6 +59,24 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                 //        }
                 //    }
                 //}
+            }
+        }
+
+        protected override void AddToResult<TKey, TValue>(Dictionary<TKey, TValue> query)
+        {
+            foreach (var kvp in query)
+            {
+                foreach (var address in kvp.Value)
+                {
+                    try
+                    {
+                        _result.Add(address, kvp.Key);
+                    }
+                    catch (ArgumentException)
+                    {
+                        _result[address] = ((long)(_result[address as string]) + Convert.ToInt64(kvp.Key)) / 2;
+                    }
+                }
             }
         }
     }

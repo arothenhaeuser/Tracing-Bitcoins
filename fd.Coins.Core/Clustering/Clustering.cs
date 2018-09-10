@@ -1,5 +1,6 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -15,8 +16,16 @@ namespace fd.Coins.Core.Clustering
         protected int _dimension;
 
         protected IDictionary _result;
+        public IDictionary Result
+        {
+            get
+            {
+                return _result;
+            }
+        }
 
         public abstract void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids);
+        protected abstract void AddToResult<TKey, TValue>(Dictionary<TKey, TValue> query) where TKey: IConvertible where TValue : IEnumerable<string>;
         public void ToFile(string path)
         {
             Directory.CreateDirectory(path);

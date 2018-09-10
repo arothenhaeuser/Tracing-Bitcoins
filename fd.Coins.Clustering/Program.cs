@@ -17,6 +17,7 @@ namespace fd.Coins.Clustering
             {
                 var totalAmounts = new TotalAmounts();
                 var timeSlots = new TimeSlots();
+                var dayOfWeek = new Core.Clustering.Intrinsic.DayOfWeek();
                 //var h1 = new Heuristic1();
                 //var h2 = new Heuristic2();
 
@@ -24,7 +25,7 @@ namespace fd.Coins.Clustering
                 long limit = 5000;
                 long total = txgraph.CountRecords;
 
-                while (skip < total)
+                while (skip < 3772551/*total*/)
                 {
                     var rids = txgraph.Command($"SELECT @rid FROM Transaction SKIP {skip} LIMIT {limit}").ToList().Select(x => x.GetField<ORID>("rid")).ToList();
                     skip += limit;
@@ -36,21 +37,22 @@ namespace fd.Coins.Clustering
                     {
                         timeSlots.Run(txgraphOptions, rids);
                     });
+                    var tDayOfWeek = Task.Run(() =>
+                    {
+                        dayOfWeek.Run(txgraphOptions, rids);
+                    });
                     //var tH1 = Task.Run(() => {
                     //    h1.Run(txgraphOptions, rids);
                     //});
                     //var tH2 = Task.Run(() => {
                     //    h2.Run(txgraphOptions, rids);
                     //});
-                    Task.WaitAll(tTotalAmounts, tTimeSlots/*, tH1, tH2*/);
-                    totalAmounts.ToFile($"report_{skip - limit}-{skip}");
-                    timeSlots.ToFile($"report_{skip - limit}-{skip}");
-                    //h1.ToFileChained($"report_{skip - limit}-{skip}");
-                    //h2.ToFileChained($"report_{skip - limit}-{skip}");
-                    Console.WriteLine($"{skip} processed.");
+                    Task.WaitAll(tTotalAmounts, tTimeSlots, tDayOfWeek/*, tH1, tH2*/);
+                    Console.WriteLine($"{skip - 3772550 } processed.");
                 }
                 totalAmounts.ToFile("report");
                 timeSlots.ToFile("report");
+                dayOfWeek.ToFile("report");
                 //h1.ToFileChained("report");
                 //h2.ToFileChained("report");
             }

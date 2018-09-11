@@ -2,6 +2,7 @@
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -12,52 +13,61 @@ namespace fd.Coins.Clustering
         static void Main(string[] args)
         {
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
+            var algoPipe = new List<Core.Clustering.Clustering>();
+            algoPipe.Add(new TotalAmounts());
+            algoPipe.Add(new TimeSlots());
+            algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
+            algoPipe.Add(new Heuristic1());
+            algoPipe.Add(new Heuristic2());
 
             using (var txgraph = new ODatabase(txgraphOptions))
             {
-                var totalAmounts = new TotalAmounts();
-                var timeSlots = new TimeSlots();
-                var dayOfWeek = new Core.Clustering.Intrinsic.DayOfWeek();
-                //var h1 = new Heuristic1();
-                //var h2 = new Heuristic2();
-
-                long skip = 3772550;
-                long limit = 5000;
+                long skip = 0;
+                long limit = 50000;
                 long total = txgraph.CountRecords;
 
-                while (skip < 3772551/*total*/)
+                while (skip < 1000000/*total*/)
                 {
                     var rids = txgraph.Command($"SELECT @rid FROM Transaction SKIP {skip} LIMIT {limit}").ToList().Select(x => x.GetField<ORID>("rid")).ToList();
                     skip += limit;
-                    var tTotalAmounts = Task.Run(() =>
+
+                    var tasks = new List<Task>();
+                    foreach(var algo in algoPipe)
                     {
-                        totalAmounts.Run(txgraphOptions, rids);
-                    });
-                    var tTimeSlots = Task.Run(() =>
-                    {
-                        timeSlots.Run(txgraphOptions, rids);
-                    });
-                    var tDayOfWeek = Task.Run(() =>
-                    {
-                        dayOfWeek.Run(txgraphOptions, rids);
-                    });
-                    //var tH1 = Task.Run(() => {
-                    //    h1.Run(txgraphOptions, rids);
-                    //});
-                    //var tH2 = Task.Run(() => {
-                    //    h2.Run(txgraphOptions, rids);
-                    //});
-                    Task.WaitAll(tTotalAmounts, tTimeSlots, tDayOfWeek/*, tH1, tH2*/);
-                    Console.WriteLine($"{skip - 3772550 } processed.");
+                        tasks.Add(Task.Run(() =>
+                        {
+                            algo.Run(txgraphOptions, rids);
+                        }));
+                    }
+                    Task.WaitAll(tasks.ToArray());
+                    Console.WriteLine($"{skip} processed.");
                 }
-                totalAmounts.ToFile("report");
-                timeSlots.ToFile("report");
-                dayOfWeek.ToFile("report");
-                //h1.ToFileChained("report");
-                //h2.ToFileChained("report");
+
+                var result = new Dictionary<string, double>();
+                var addresses = GetAddresses();
+                foreach(var addr in addresses)
+                {
+                    var distance = 0.0;
+                    foreach (var algo in algoPipe)
+                    {
+                        distance += algo.Distance(addr, "1dicec9k7KpmQaA8Uc8aCCxfWnwEWzpXE");
+                    }
+                    distance /= algoPipe.Count;
+                    result.Add(addr, distance);
+                }
+                Console.WriteLine(string.Join("\n", result.OrderBy(x => x.Value).Select(x => string.Join(",", x.Key, x.Value))));
             }
 
             Console.Read();
+        }
+
+        private static List<string> GetAddresses()
+        {
+            var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
+            using (var txgraph = new ODatabase(txgraphOptions))
+            {
+                return txgraph.Command($"SELECT list(inE().tAddr) AS addresses FROM (SELECT * FROM Transaction SKIP 3772550 LIMIT 500)").ToList().FirstOrDefault().GetField<List<string>>("addresses").Distinct().ToList();
+            }
         }
     }
 }

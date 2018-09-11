@@ -1,11 +1,9 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Web.Script.Serialization;
 
 namespace fd.Coins.Core.Clustering
 {
@@ -15,54 +13,11 @@ namespace fd.Coins.Core.Clustering
 
         protected int _dimension;
 
-        protected IDictionary _result;
-        public IDictionary Result
-        {
-            get
-            {
-                return _result;
-            }
-        }
-
         public abstract void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids);
-        protected abstract void AddToResult<TKey, TValue>(Dictionary<TKey, TValue> query) where TKey: IConvertible where TValue : IEnumerable<string>;
-        public void ToFile(string path)
-        {
-            Directory.CreateDirectory(path);
-            File.WriteAllText(Path.Combine(path, _options.DatabaseName + ".txt"), new JavaScriptSerializer().Serialize(_result));
-        }
-        public void ToFileChained(string path)
-        {
-            using (var resultDB = new ODatabase(_options))
-            {
-                // get the root of each connected component in the graph
-                var roots = resultDB.Command("SELECT distinct(traversedElement(0)) AS root FROM (TRAVERSE * FROM V)").ToList().Select(x => x.GetField<ORID>("root"));
-                // traverse from each root to get addresses of each connected component as list
-                var addrClusters = new List<IEnumerable<string>>();
-                foreach (var root in roots)
-                {
-                    var cluster = resultDB.Command($"TRAVERSE * FROM {root.RID}").ToList().Select(x => x.GetField<string>("Address")).Where(x => !string.IsNullOrEmpty(x));
-                    if (cluster.Count() > 1)
-                        addrClusters.Add(cluster);
-                }
-                Directory.CreateDirectory(path);
-                File.WriteAllLines(Path.Combine(path, _options.DatabaseName + ".txt"), addrClusters.Select(x => string.Join("\t", x)));
-            }
-        }
-        public void ToFileGroups(string path)
-        {
-            using (var resultDB = new ODatabase(_options))
-            {
-                var addrClusters = new List<IEnumerable<string>>();
-                var clusters = resultDB.Command("SELECT distinct(list(traversedVertex(0).Address, traversedVertex(1).Address)) AS pair FROM (TRAVERSE * FROM V WHILE $depth < 3) WHERE traversedElement(2) IS NOT NULL").ToList().Select(x => x.GetField<List<string>>("pair")).Where(x => x.Count == 2).ToLookup(k => k.First(), v => v.Last());
-                foreach (var cluster in clusters)
-                {
-                    addrClusters.Add(cluster.ToList());
-                }
-                Directory.CreateDirectory(path);
-                File.WriteAllLines(Path.Combine(path, _options.DatabaseName + ".txt"), addrClusters.Select(x => string.Join("\t", x)));
-            }
-        }
+        public abstract double Distance(string addr1, string addr2);
+        public abstract void ToFile(string path);
+        public abstract void FromFile(string path);
+
         public void Recreate()
         {
             // check if an old version of the resulting graph already exists and delete it

@@ -1,11 +1,10 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Web.Script.Serialization;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
 {
@@ -16,6 +15,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
     // 4. Only one output of this transaction matches the above (ambiguity)
     public class Heuristic2 : Clustering
     {
+        private List<List<string>> _result;
         public Heuristic2()
         {
             _options = new ConnectionOptions();
@@ -26,6 +26,8 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             _options.Port = 2424;
             _options.UserName = "admin";
 
+            _result = new List<List<string>>();
+
             Recreate();
         }
 
@@ -34,7 +36,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var records = mainDB.Command($"SELECT * FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList();
-                foreach(var record in records)
+                foreach (var record in records)
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
@@ -72,12 +74,24 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                     }
                 }
             }
+            using (var resultDB = new ODatabase(_options))
+            {
+                // get the root of each connected component in the graph
+                var roots = resultDB.Command("SELECT distinct(traversedElement(0)) AS root FROM (TRAVERSE * FROM V)").ToList().Select(x => x.GetField<ORID>("root"));
+                // traverse from each root to get addresses of each connected component as list
+                foreach (var root in roots)
+                {
+                    var cluster = resultDB.Command($"TRAVERSE * FROM {root.RID}").ToList().Select(x => x.GetField<string>("Address")).Where(x => !string.IsNullOrEmpty(x)).ToList();
+                    if (cluster.Count() > 1)
+                        _result.Add(cluster);
+                }
+            }
         }
 
         private static string GetChangeAddress(ODocument node)
         {
             var outputs = GetOutputStrings(node);
-            
+
             var ambigous = false;
             string changeAddress = null;
             if (outputs.Length > 1)
@@ -130,9 +144,22 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             return list.ToArray();
         }
 
-        protected override void AddToResult<TKey, TValue>(Dictionary<TKey, TValue> query)
+        public override void ToFile(string path)
         {
-            throw new NotImplementedException();
+            Directory.CreateDirectory(path);
+            File.WriteAllText(Path.Combine(path, _options.DatabaseName + ".txt"), new JavaScriptSerializer().Serialize(_result));
+        }
+
+        public override void FromFile(string path)
+        {
+            _result = new JavaScriptSerializer().Deserialize<List<List<string>>>(File.ReadAllText(Path.Combine(path, _options.DatabaseName + ".txt")));
+        }
+
+        public override double Distance(string addr1, string addr2)
+        {
+            var v1 = _result.SelectMany(x => x.Where(y => y.Contains(addr1)));
+            var v2 = _result.SelectMany(x => x.Where(y => y.Contains(addr2)));
+            return v1.SequenceEqual(v2) ? 0.0 : 1.0;
         }
     }
 }

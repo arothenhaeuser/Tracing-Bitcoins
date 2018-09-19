@@ -30,7 +30,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             var v1 = _result[addr1];
             var v2 = _result[addr2];
-            return 1 / (1 + v1 - v2);
+            return Math.Abs(v1 - v2)/(v1 + v2);
         }
 
         public override void FromFile(string path)
@@ -38,12 +38,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             _result = new JavaScriptSerializer().Deserialize<Dictionary<string, double>>(File.ReadAllText(Path.Combine(path, _options.DatabaseName + ".txt")));
         }
 
-        public override void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids)
+        public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var totalAmounts = mainDB.Command($"SELECT sum(inE().amount).asLong() as total, inE().tAddr as addresses FROM (SELECT * FROM [{string.Join(",", rids.Select(x => x.RID))}] WHERE Coinbase = false AND Unlinked = false) GROUP BY @rid").ToList().Select(x => new KeyValuePair<long, List<string>>(x.GetField<long>("total").RoundToSignificant(), x.GetField<List<string>>("addresses"))).GroupBy(x => x.Key).ToDictionary(x => x.Key, y => y.SelectMany(z => z.Value).Distinct().ToList());
-                _result = totalAmounts.ToAverage();
+                _result = mainDB.Query($"SELECT avg(inV().inE().amount).asLong() as total, tAddr as address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => (double)y.GetField<long>("total").RoundToSignificant());
             }
         }
 

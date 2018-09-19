@@ -38,11 +38,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             _result = new JavaScriptSerializer().Deserialize<Dictionary<string, BitArray>>(File.ReadAllText(Path.Combine(path, _options.DatabaseName + ".txt")));
         }
 
-        public override void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids)
+        public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var timeSlots = mainDB.Query($"SELECT $timeSlot.asLong() AS timeSlot, list(inE().tAddr) AS addresses FROM [{string.Join(",", rids.Select(x => x.RID))}] LET $timeSlot = BlockTime.format('k') GROUP BY $timeSlot").ToDictionary(x => x.GetField<long>("timeSlot"), y => y.GetField<List<string>>("addresses"));
+                var timeSlots = mainDB.Query($"SELECT $hour as hour, list(tAddr) as addresses FROM Link LET $hour = outV().BlockTime.format('k').asLong() WHERE tAddr in [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY $hour").ToDictionary(x => x.GetField<long>("hour"), y => y.GetField<List<string>>("addresses"));
                 AddToResult(timeSlots);
             }
         }
@@ -59,15 +59,18 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 foreach (var address in kvp.Value)
                 {
-                    var slots = new BitArray(24);
-                    slots.Set(Convert.ToInt32(kvp.Key) - 1, true);
-                    try
+                    if (!string.IsNullOrEmpty(address))
                     {
-                        _result.Add(address, slots);
-                    }
-                    catch (ArgumentException)
-                    {
-                        _result[address] = _result[address].Or(slots);
+                        var slots = new BitArray(24);
+                        slots.Set(Convert.ToInt32(kvp.Key) - 1, true);
+                        try
+                        {
+                            _result.Add(address, slots);
+                        }
+                        catch (ArgumentException)
+                        {
+                            _result[address] = _result[address].Or(slots);
+                        }
                     }
                 }
             }

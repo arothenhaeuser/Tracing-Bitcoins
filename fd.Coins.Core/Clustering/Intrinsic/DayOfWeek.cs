@@ -39,11 +39,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             _result = new JavaScriptSerializer().Deserialize<Dictionary<string, BitArray>>(File.ReadAllText(Path.Combine(path, _options.DatabaseName + ".txt")));
         }
 
-        public override void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids)
+        public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var dayOfWeek = mainDB.Query($"SELECT $day AS day, list(inE().tAddr) AS addresses FROM [{string.Join(",", rids.Select(x => x.RID))}] LET $day = BlockTime.format('E') GROUP BY $day").ToDictionary(x => x.GetField<string>("day"), y => y.GetField<List<string>>("addresses"));
+                var dayOfWeek = mainDB.Query($"SELECT $day as day, list(tAddr) as addresses FROM Link LET $day = outV().BlockTime.format('E') WHERE tAddr in [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY $day").ToDictionary(x => x.GetField<string>("day"), y => y.GetField<List<string>>("addresses"));
                 AddToResult(dayOfWeek);
             }
         }
@@ -60,15 +60,18 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 foreach (var address in kvp.Value)
                 {
-                    var slots = new BitArray(7);
-                    slots.Set(ToInt(kvp.Key), true);
-                    try
+                    if (!string.IsNullOrEmpty(address))
                     {
-                        _result.Add(address, slots);
-                    }
-                    catch (ArgumentException)
-                    {
-                        _result[address] = _result[address].Or(slots);
+                        var slots = new BitArray(7);
+                        slots.Set(ToInt(kvp.Key), true);
+                        try
+                        {
+                            _result.Add(address, slots);
+                        }
+                        catch (ArgumentException)
+                        {
+                            _result[address] = _result[address].Or(slots);
+                        }
                     }
                 }
             }

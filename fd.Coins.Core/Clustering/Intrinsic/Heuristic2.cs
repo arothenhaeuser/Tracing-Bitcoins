@@ -31,11 +31,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             Recreate();
         }
 
-        public override void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids)
+        public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var records = mainDB.Command($"SELECT * FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList();
+                var records = mainDB.Command($"SELECT expand(tx) FROM (SELECT inV() as tx FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").ToList();
                 foreach (var record in records)
                 {
                     using (var resultDB = new ODatabase(_options))

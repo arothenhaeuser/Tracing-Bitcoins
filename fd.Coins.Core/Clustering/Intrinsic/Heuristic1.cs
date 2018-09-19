@@ -39,16 +39,16 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             _result = new JavaScriptSerializer().Deserialize<List<List<string>>>(File.ReadAllText(Path.Combine(path, _options.DatabaseName + ".txt")));
         }
 
-        public override void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids)
+        public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var inGroups = mainDB.Command($"SELECT inE().tAddr AS address FROM [{string.Join(",", rids.Select(x => x.RID))}]").ToList().Select(x => x.GetField<List<string>>("address").Distinct().ToList()).ToList();
-                foreach (var addresses in inGroups.Where(x => x.Count > 1))
+                var inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Distinct().ToList()).Distinct();
+                foreach (var group in inGroups.Where(x => x.Count > 1))
                 {
                     using (var resultDB = new ODatabase(_options))
                     {
-                        for (var i = 0; i < addresses.Count - 1; i++)
+                        for (var i = 0; i < group.Count - 1; i++)
                         {
                             Utils.RetryOnConcurrentFail(3, () =>
                             {
@@ -56,8 +56,8 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                                 OVertex cur = null, next = null;
                                 try
                                 {
-                                    cur = resultDB.Select().From("Node").Where("Address").Equals(addresses[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i]).Run();
-                                    next = resultDB.Select().From("Node").Where("Address").Equals(addresses[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addresses[i + 1]).Run();
+                                    cur = resultDB.Select().From("Node").Where("Address").Equals(group[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", group[i]).Run();
+                                    next = resultDB.Select().From("Node").Where("Address").Equals(group[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", group[i + 1]).Run();
                                     tx.AddOrUpdate(cur);
                                     tx.AddOrUpdate(next);
                                     tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);

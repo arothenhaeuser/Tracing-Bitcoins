@@ -1,9 +1,6 @@
 ﻿using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 
 namespace fd.Coins.Core.Clustering
 {
@@ -13,7 +10,7 @@ namespace fd.Coins.Core.Clustering
 
         protected int _dimension;
 
-        public abstract void Run(ConnectionOptions mainOptions, IEnumerable<ORID> rids);
+        public abstract void Run(ConnectionOptions mainOptions, IEnumerable<string> rids);
         public abstract double Distance(string addr1, string addr2);
         public abstract void ToFile(string path);
         public abstract void FromFile(string path);

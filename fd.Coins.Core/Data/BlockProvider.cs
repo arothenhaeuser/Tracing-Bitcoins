@@ -65,14 +65,18 @@ namespace fd.Coins.Core.NetworkConnector
                     var nodes = db.Select().From("Transaction").Where("Unlinked").Equals(true).Limit(50000).ToList<OVertex>();
                     foreach (var node in nodes)
                     {
+                        var transaction = db.Transaction;
                         if (IsCoinbaseTx(node))
                         {
-                            db.Command($"UPDATE {node.ORID} SET Unlinked = False");
+                            node.SetField("Unlinked", false);
+                            transaction.AddOrUpdate(node);
+                            transaction.Commit();
+                            //db.Command($"UPDATE {node.ORID} SET Unlinked = False");
                             continue;
                         }
-                        var transaction = db.Transaction;
                         try
                         {
+                            transaction.AddOrUpdate(node);
                             for (var i = 0; i < GetInputCount(node); i++)
                             {
                                 var inputString = node.GetField<string>($"INPUT{i}");
@@ -81,6 +85,7 @@ namespace fd.Coins.Core.NetworkConnector
                                 var prevTx = db.Query<OVertex>($"SELECT * FROM Transaction WHERE Hash = \"{prevHash}\"").FirstOrDefault();
                                 if (prevTx != null)
                                 {
+                                    transaction.AddOrUpdate(prevTx);
                                     var prevOutString = prevTx.GetField<string>($"OUTPUT{prevN}");
                                     var prevOutN = prevOutString?.Split(':')[0];
                                     var outAddr = prevOutString?.Split(':')[1];
@@ -91,11 +96,11 @@ namespace fd.Coins.Core.NetworkConnector
                                     edge.SetField("amount", outAmount);
                                     edge.SetField("tTx", node.GetField<string>("Hash"));
                                     edge.SetField("tAddr", outAddr ?? "");
-                                    transaction.AddEdge(edge, prevTx, db.Select().From($"{node.ORID}").ToList<OVertex>().First());
+                                    transaction.AddEdge(edge, prevTx, node);
                                 }
                             }
-                            //node.SetField("Unlinked", false);
-                            //transaction.Update(node);
+                            node.SetField("Unlinked", false);
+                            transaction.Update(node);
                             transaction.Commit();
                         }
                         catch (Exception e)

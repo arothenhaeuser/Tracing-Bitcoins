@@ -14,8 +14,7 @@ namespace fd.Coins.Clustering
         {
 
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
-            var data = new DataSourceProvider("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b", LimitType.DATE, 15);
-            var rids = data.GetRids(txgraphOptions);
+            var data = new DataSourceProvider("8ac3e3c9c9ebbf454f6996f4fee35db6c431a931200f453340f9d471b3223e1b", LimitType.COUNT, 10);
             var addresses = data.GetAddresses(txgraphOptions);
 
             var algoPipe = new List<Core.Clustering.Clustering>();

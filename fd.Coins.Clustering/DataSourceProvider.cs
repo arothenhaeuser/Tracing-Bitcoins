@@ -32,7 +32,7 @@ namespace fd.Coins.Clustering
                         break;
                     case LimitType.DATE:
                         var start = db.Query<ODocument>($"SELECT BlockTime AS value FROM Transaction WHERE Hash = '{_options.StartTx}'").Select(x => x.GetField<DateTime>("value")).FirstOrDefault();
-                        var end = start.AddDays(_options.Limit);
+                        var end = start.AddHours(_options.Limit);
                         result = db.Query<ODocument>($"SELECT * FROM Transaction WHERE BlockTime > '{start.ToString("yyyy-MM-dd hh:mm:ss")}' AND BlockTime < '{end.ToString("yyyy-MM-dd hh:mm:ss")}'").ToList().Select(x => x.GetField<ORID>("@ORID")).ToList();
                         break;
                     case LimitType.COUNT:

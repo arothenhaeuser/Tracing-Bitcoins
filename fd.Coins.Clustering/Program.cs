@@ -14,15 +14,17 @@ namespace fd.Coins.Clustering
         {
 
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
-            var data = new DataSourceProvider("8ac3e3c9c9ebbf454f6996f4fee35db6c431a931200f453340f9d471b3223e1b", LimitType.COUNT, 10);
+            var data = new DataSourceProvider("8ac3e3c9c9ebbf454f6996f4fee35db6c431a931200f453340f9d471b3223e1b", LimitType.DATE, 10);
             var addresses = data.GetAddresses(txgraphOptions);
+            // DEBUG
+            Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
 
             var algoPipe = new List<Core.Clustering.Clustering>();
             algoPipe.Add(new TotalAmounts());
             algoPipe.Add(new TimeSlots());
             algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
-            //algoPipe.Add(new Heuristic1());
-            //algoPipe.Add(new Heuristic2());
+            algoPipe.Add(new Heuristic1());
+            algoPipe.Add(new Heuristic2());
 
 
             //using (var txgraph = new ODatabase(txgraphOptions))
@@ -39,15 +41,21 @@ namespace fd.Coins.Clustering
             var tasks = new List<Task>();
             foreach (var algo in algoPipe)
             {
-                tasks.Add(Task.Run(() =>
-                {
+                //tasks.Add(Task.Run(() =>
+                //{
                     algo.Run(txgraphOptions, addresses);
-                }));
+                //}));
             }
-            Task.WaitAll(tasks.ToArray());
+            //Task.WaitAll(tasks.ToArray());
             //Console.WriteLine($"{skip} processed.");
             //}
 
+            // DEBUG
+            Console.WriteLine("Processing of addresses done.");
+
+
+            // DEBUG
+            Console.WriteLine("Starting distance calculation...");
             var result = new Dictionary<string, double>();
             foreach (var addr in addresses)
             {
@@ -61,8 +69,6 @@ namespace fd.Coins.Clustering
             }
             Console.WriteLine(string.Join("\n", result.OrderBy(x => x.Value).Select(x => string.Join(",", x.Key, x.Value))));
             //}
-
-            var debug = result.OrderBy(x => x.Value).ToDictionary(x => x.Key, y => y.Value);
 
             Console.Read();
         }

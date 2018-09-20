@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Web.Script.Serialization;
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
@@ -41,9 +43,13 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
+            // DEBUG
+            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
+            var sw = new Stopwatch();
+            sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Distinct().ToList()).Distinct();
+                var inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Where(y => !string.IsNullOrEmpty(y)).Distinct().ToList()).Distinct();
                 foreach (var group in inGroups.Where(x => x.Count > 1))
                 {
                     using (var resultDB = new ODatabase(_options))
@@ -86,6 +92,9 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                         _result.Add(cluster);
                 }
             }
+            sw.Stop();
+            // DEBUG
+            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
         }
 
         public override void ToFile(string path)

@@ -2,8 +2,10 @@
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Web.Script.Serialization;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
@@ -40,10 +42,17 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
+            // DEBUG
+            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
+            var sw = new Stopwatch();
+            sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                _result = mainDB.Query($"SELECT avg(inV().inE().amount).asLong() as total, tAddr as address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => (double)y.GetField<long>("total").RoundToSignificant());
+                _result = mainDB.Query($"SELECT avg(inV().inE().amount).asLong() as total, tAddr as address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => (double)y.GetField<long>("total"));
             }
+            sw.Stop();
+            // DEBUG
+            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
         }
 
         public override void ToFile(string path)

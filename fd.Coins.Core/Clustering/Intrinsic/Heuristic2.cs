@@ -2,8 +2,10 @@
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Web.Script.Serialization;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
@@ -33,6 +35,10 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
+            // DEBUG
+            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
+            var sw = new Stopwatch();
+            sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var records = mainDB.Command($"SELECT expand(tx) FROM (SELECT inV() as tx FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").ToList();
@@ -86,6 +92,9 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                         _result.Add(cluster);
                 }
             }
+            sw.Stop();
+            // DEBUG
+            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
         }
 
         private static string GetChangeAddress(ODocument node)

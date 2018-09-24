@@ -49,37 +49,65 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Where(y => !string.IsNullOrEmpty(y)).Distinct().ToList()).Distinct();
-                foreach (var group in inGroups.Where(x => x.Count > 1))
+                Console.WriteLine($"\tGetting groups...");
+                var inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Where(y => !string.IsNullOrEmpty(y)).Distinct().ToList()).Where(x => x.Count > 1).Distinct();
+                using (var resultDB = new ODatabase(_options))
                 {
-                    using (var resultDB = new ODatabase(_options))
+                    resultDB.DatabaseProperties.ORID = new ORID();
+                    foreach (var group in inGroups.Select(x => x.Distinct()))
                     {
-                        for (var i = 0; i < group.Count - 1; i++)
+                        var orids = new Dictionary<string, ORID>();
+                        foreach (var address in group)
                         {
-                            Utils.RetryOnConcurrentFail(3, () =>
-                            {
-                                var tx = resultDB.Transaction;
-                                OVertex cur = null, next = null;
-                                try
-                                {
-                                    cur = resultDB.Select().From("Node").Where("Address").Equals(group[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", group[i]).Run();
-                                    next = resultDB.Select().From("Node").Where("Address").Equals(group[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", group[i + 1]).Run();
-                                    tx.AddOrUpdate(cur);
-                                    tx.AddOrUpdate(next);
-                                    tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);
-                                    tx.Commit();
-                                }
-                                catch
-                                {
-                                    tx.Reset();
-                                    throw;
-                                }
-                                return true;
-                            });
+                            var node = new OVertex();
+                            node.OClassName = "Node";
+                            node.SetField("Address", address);
+                            resultDB.Transaction.Add(node);
+                            orids.Add(address, node.ORID);
+                        }
+                        for(var i = 0; i < group.Count() - 1; i++)
+                        {
+                            var link = new OEdge();
+                            link.OClassName = "Link";
+                            var from = resultDB.Transaction.GetPendingObject<OVertex>(orids[group.ElementAt(i)]);
+                            var to = resultDB.Transaction.GetPendingObject<OVertex>(orids[group.ElementAt(i + 1)]);
+                            resultDB.Transaction.AddEdgeIfNotExists(link, from, to);
                         }
                     }
+                    resultDB.Transaction.Commit();
                 }
+                //foreach (var group in inGroups.Where(x => x.Count > 1))
+                //{
+                //    Console.WriteLine($"\t\tInserting group...");
+                //    using (var resultDB = new ODatabase(_options))
+                //    {
+                //        for (var i = 0; i < group.Count - 1; i++)
+                //        {
+                //            Utils.RetryOnConcurrentFail(3, () =>
+                //            {
+                //                var tx = resultDB.Transaction;
+                //                OVertex cur = null, next = null;
+                //                try
+                //                {
+                //                    cur = resultDB.Select().From("Node").Where("Address").Equals(group[i])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", group[i]).Run();
+                //                    next = resultDB.Select().From("Node").Where("Address").Equals(group[i + 1])?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", group[i + 1]).Run();
+                //                    tx.AddOrUpdate(cur);
+                //                    tx.AddOrUpdate(next);
+                //                    tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, cur, next);
+                //                    tx.Commit();
+                //                }
+                //                catch
+                //                {
+                //                    tx.Reset();
+                //                    throw;
+                //                }
+                //                return true;
+                //            });
+                //        }
+                //    }
+                //}
             }
+            Console.WriteLine($"\tParsing connected components...");
             using (var resultDB = new ODatabase(_options))
             {
                 // get the root of each connected component in the graph

@@ -6,10 +6,15 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Cli", "fd.Coins.Cli\fd.Coins.Cli.csproj", "{D2E13358-DBBD-4EC8-85CA-CEEF65FD8BCD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Core", "fd.Coins.Core\fd.Coins.Core.csproj", "{3575C758-07B9-4676-8A22-E9408B49B7C0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{21C47A22-BBEA-4A00-B671-930C2D4CA5DB} = {21C47A22-BBEA-4A00-B671-930C2D4CA5DB}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Evaluation", "fd.Core.Evaluation\fd.Coins.Evaluation.csproj", "{3B1E5B15-97A1-4556-B91A-7970F81EF720}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fd.Coins.Clustering", "fd.Coins.Clustering\fd.Coins.Clustering.csproj", "{F6501C5C-C9E3-4441-A140-69D35A06B631}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OrientDB-Net.binary.Innov8tive", "..\OrientDB.NET-binary driver\src\OrientDB-Net.binary.Innov8tive\OrientDB-Net.binary.Innov8tive.csproj", "{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +38,10 @@ Global
 		{F6501C5C-C9E3-4441-A140-69D35A06B631}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F6501C5C-C9E3-4441-A140-69D35A06B631}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F6501C5C-C9E3-4441-A140-69D35A06B631}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

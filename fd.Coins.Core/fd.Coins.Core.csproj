@@ -39,10 +39,6 @@
     <Reference Include="Esent.Isam, Version=1.9.4.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Database.Isam.1.9.4\lib\net40\Esent.Isam.dll</HintPath>
     </Reference>
-    <Reference Include="OrientDB-Net.binary.Innov8tive, Version=0.1.12.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\libraries\OrientDB-Net.binary.Innov8tive.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
@@ -117,6 +113,12 @@
     <PackageReference Include="Newtonsoft.Json">
       <Version>11.0.2</Version>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\OrientDB.NET-binary driver\src\OrientDB-Net.binary.Innov8tive\OrientDB-Net.binary.Innov8tive.csproj">
+      <Project>{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}</Project>
+      <Name>OrientDB-Net.binary.Innov8tive</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

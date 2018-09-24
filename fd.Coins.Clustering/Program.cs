@@ -20,11 +20,11 @@ namespace fd.Coins.Clustering
             Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
 
             var algoPipe = new List<Core.Clustering.Clustering>();
-            algoPipe.Add(new TotalAmounts());
-            algoPipe.Add(new TimeSlots());
-            algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
+            //algoPipe.Add(new TotalAmounts());
+            //algoPipe.Add(new TimeSlots());
+            //algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
             algoPipe.Add(new Heuristic1());
-            algoPipe.Add(new Heuristic2());
+            //algoPipe.Add(new Heuristic2());
 
 
             //using (var txgraph = new ODatabase(txgraphOptions))

@@ -1,4 +1,5 @@
 ﻿using Orient.Client;
+using Orient.Client.API;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -63,6 +64,14 @@ namespace fd.Coins.Core
                 }
             }
             return test;
+        }
+
+        public static void AddEdgeIfNotExists(this OTransaction self, OEdge edge, OVertex from, OVertex to)
+        {
+            if(!(from.HasField("out_" + edge.OClassName) && to.HasField("in_" + edge.OClassName)))
+            {
+                self.AddEdge(edge, from, to);
+            }
         }
     }
 }

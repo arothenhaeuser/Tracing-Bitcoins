@@ -32,10 +32,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="OrientDB-Net.binary.Innov8tive, Version=0.1.9.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\libraries\OrientDB-Net.binary.Innov8tive.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -49,12 +45,15 @@
     <Compile Include="DataSourceProvider.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\OrientDB.NET-binary driver\src\OrientDB-Net.binary.Innov8tive\OrientDB-Net.binary.Innov8tive.csproj">
+      <Project>{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}</Project>
+      <Name>OrientDB-Net.binary.Innov8tive</Name>
+    </ProjectReference>
     <ProjectReference Include="..\fd.Coins.Core\fd.Coins.Core.csproj">
       <Project>{3575C758-07B9-4676-8A22-E9408B49B7C0}</Project>
       <Name>fd.Coins.Core</Name>

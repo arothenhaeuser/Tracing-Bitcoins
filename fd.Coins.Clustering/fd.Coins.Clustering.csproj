@@ -55,10 +55,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\OrientDB.NET-binary driver\src\OrientDB-Net.binary.Innov8tive\OrientDB-Net.binary.Innov8tive.csproj">
-      <Project>{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}</Project>
-      <Name>OrientDB-Net.binary.Innov8tive</Name>
-    </ProjectReference>
     <ProjectReference Include="..\fd.Coins.Core\fd.Coins.Core.csproj">
       <Project>{3575C758-07B9-4676-8A22-E9408B49B7C0}</Project>
       <Name>fd.Coins.Core</Name>

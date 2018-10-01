@@ -115,8 +115,8 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\OrientDB.NET-binary driver\src\OrientDB-Net.binary.Innov8tive\OrientDB-Net.binary.Innov8tive.csproj">
-      <Project>{21C47A22-BBEA-4A00-B671-930C2D4CA5DB}</Project>
+    <ProjectReference Include="..\OrientDB-Net.binary.Innov8tive\OrientDB-Net.binary.Innov8tive.csproj">
+      <Project>{181c6d6c-76a7-4419-906b-0e3651a6a302}</Project>
       <Name>OrientDB-Net.binary.Innov8tive</Name>
     </ProjectReference>
   </ItemGroup>

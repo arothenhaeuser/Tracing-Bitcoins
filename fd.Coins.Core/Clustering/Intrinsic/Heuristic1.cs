@@ -54,27 +54,52 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                 using (var resultDB = new ODatabase(_options))
                 {
                     resultDB.DatabaseProperties.ORID = new ORID();
-                    foreach (var group in inGroups.Select(x => x.Distinct()))
+                    // get distinct addresses from groups to create nodes
+                    var nodes = inGroups.SelectMany(x => x).Distinct();
+                    Console.WriteLine($"\tCreating {nodes.Count()} nodes.");
+                    foreach (var node in nodes)
                     {
-                        var orids = new Dictionary<string, ORID>();
-                        foreach (var address in group)
-                        {
-                            var node = new OVertex();
-                            node.OClassName = "Node";
-                            node.SetField("Address", address);
-                            resultDB.Transaction.Add(node);
-                            orids.Add(address, node.ORID);
-                        }
-                        for(var i = 0; i < group.Count() - 1; i++)
-                        {
-                            var link = new OEdge();
-                            link.OClassName = "Link";
-                            var from = resultDB.Transaction.GetPendingObject<OVertex>(orids[group.ElementAt(i)]);
-                            var to = resultDB.Transaction.GetPendingObject<OVertex>(orids[group.ElementAt(i + 1)]);
-                            resultDB.Transaction.AddEdgeIfNotExists(link, from, to);
-                        }
+                        var record = new OVertex();
+                        record.OClassName = "Node";
+                        record.SetField("Address", node);
+                        resultDB.Transaction.Add(record);
                     }
                     resultDB.Transaction.Commit();
+                    // connect nodes of each group
+                    var pairs = inGroups.SelectMany(c => c.SelectMany(x => c, (x, y) => Tuple.Create( x, y ))).Where(p => Comparer<string>.Default.Compare(p.Item1, p.Item2) < 0).Distinct().OrderBy(x => x.Item1);
+                    Console.WriteLine($"\tCreating {pairs.Count()} edges.");
+                    foreach (var pair in pairs)
+                    {
+                        var n1 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item1).ToList<OVertex>().FirstOrDefault();
+                        var n2 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item2).ToList<OVertex>().FirstOrDefault();
+                        var record = new OEdge();
+                        record.OClassName = _options.DatabaseName;
+                        resultDB.Transaction.AddEdge(record, n1, n2);
+                    }
+                    resultDB.Transaction.Commit();
+                    //foreach (var group in inGroups.Select(x => x.Distinct()))
+                    //{
+                    //    var orids = new Dictionary<string, ORID>();
+                    //    Console.WriteLine("Addresses");
+                    //    foreach (var address in group)
+                    //    {
+                    //        var node = new OVertex();
+                    //        node.OClassName = "Node";
+                    //        node.SetField("Address", address);
+                    //        resultDB.Transaction.Add(node);
+                    //        orids.Add(address, node.ORID);
+                    //    }
+                    //    Console.WriteLine("Links");
+                    //    for (var i = 0; i < group.Count() - 1; i++)
+                    //    {
+                    //        var link = new OEdge();
+                    //        link.OClassName = _options.DatabaseName;
+                    //        var from = resultDB.Transaction.GetPendingObject<OVertex>(orids[group.ElementAt(i)]);
+                    //        var to = resultDB.Transaction.GetPendingObject<OVertex>(orids[group.ElementAt(i + 1)]);
+                    //        resultDB.Transaction.AddEdgeIfNotExists(link, from, to);
+                    //    }
+                    //}
+                    //resultDB.Transaction.Commit();
                 }
                 //foreach (var group in inGroups.Where(x => x.Count > 1))
                 //{
@@ -123,6 +148,12 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Stop();
             // DEBUG
             Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
+        }
+
+        private List<string> Sort(List<string> items)
+        {
+            items.Sort();
+            return items;
         }
 
         public override void ToFile(string path)

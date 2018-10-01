@@ -1,4 +1,6 @@
-﻿using fd.Coins.Core.Clustering.Intrinsic;
+﻿using Aglomera;
+using Aglomera.Linkage;
+using fd.Coins.Core.Clustering.Intrinsic;
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
@@ -14,61 +16,42 @@ namespace fd.Coins.Clustering
         {
 
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
-            var data = new DataSourceProvider("8ac3e3c9c9ebbf454f6996f4fee35db6c431a931200f453340f9d471b3223e1b", LimitType.DATE, 10);
+            var data = new DataSourceProvider("8ac3e3c9c9ebbf454f6996f4fee35db6c431a931200f453340f9d471b3223e1b", LimitType.DATE, 1);
             var addresses = data.GetAddresses(txgraphOptions);
             // DEBUG
             Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
 
-            var algoPipe = new List<Core.Clustering.Clustering>();
-            //algoPipe.Add(new TotalAmounts());
-            //algoPipe.Add(new TimeSlots());
-            //algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
+            var algoPipe = new Pipeline();
+            algoPipe.Add(new TotalAmounts());
+            algoPipe.Add(new TimeSlots());
+            algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
             algoPipe.Add(new Heuristic1());
             //algoPipe.Add(new Heuristic2());
 
 
-            //using (var txgraph = new ODatabase(txgraphOptions))
-            //{
-            //    long skip = 0;
-            //    long limit = 50000;
-            //    long total = txgraph.CountRecords;
-
-            //    while (skip < 1000000/*total*/)
-            //    {
-            //        var rids = txgraph.Command($"SELECT @rid FROM Transaction SKIP {skip} LIMIT {limit}").ToList().Select(x => x.GetField<ORID>("rid")).ToList();
-            //        skip += limit;
-
-            var tasks = new List<Task>();
-            foreach (var algo in algoPipe)
-            {
-                //tasks.Add(Task.Run(() =>
-                //{
-                    algo.Run(txgraphOptions, addresses);
-                //}));
-            }
-            //Task.WaitAll(tasks.ToArray());
-            //Console.WriteLine($"{skip} processed.");
-            //}
-
+            algoPipe.Process(txgraphOptions, addresses);
             // DEBUG
             Console.WriteLine("Processing of addresses done.");
 
 
             // DEBUG
-            Console.WriteLine("Starting distance calculation...");
-            var result = new Dictionary<string, double>();
-            foreach (var addr in addresses)
-            {
-                var distance = 0.0;
-                foreach (var algo in algoPipe)
-                {
-                    distance += algo.Distance(addr, addresses[0]);
-                }
-                distance /= algoPipe.Count;
-                result.Add(addr, distance);
-            }
-            Console.WriteLine(string.Join("\n", result.OrderBy(x => x.Value).Select(x => string.Join(",", x.Key, x.Value))));
+            Console.WriteLine("Clustering...");
+            var metric = new AddressDissimilarityMetric(algoPipe);
+            var linkage = new AverageLinkage<string>(metric);
+            var algorithm = new AgglomerativeClusteringAlgorithm<string>(linkage);
+
+            var clusteringResult = algorithm.GetClustering(new HashSet<string>(addresses));
             //}
+
+            foreach(var clusterSet in clusteringResult)
+            {
+                Console.WriteLine($"########{clusterSet.Dissimilarity}########");
+                foreach(var cluster in clusterSet)
+                {
+                    Console.WriteLine(string.Join("\t", cluster));
+                }
+                Console.WriteLine("############");
+            }
 
             Console.Read();
         }

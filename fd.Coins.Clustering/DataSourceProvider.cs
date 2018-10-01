@@ -31,9 +31,9 @@ namespace fd.Coins.Clustering
                         result = db.Query<ODocument>($"TRAVERSE out() FROM (SELECT * FROM Transaction WHERE Hash = '{_options.StartTx}') WHILE $depth <= {_options.Limit} STRATEGY BREADTH_FIRST").Select(x => x.GetField<ORID>("@ORID")).ToList();
                         break;
                     case LimitType.DATE:
-                        var start = db.Query<ODocument>($"SELECT BlockTime AS value FROM Transaction WHERE Hash = '{_options.StartTx}'").Select(x => x.GetField<DateTime>("value")).FirstOrDefault();
+                        var start = db.Query<ODocument>($"SELECT BlockTime AS value FROM Transaction WHERE Hash = '{_options.StartTx}'").Select(x => x.GetField<DateTime>("value")).FirstOrDefault().ToLocalTime();
                         var end = start.AddMinutes(_options.Limit);
-                        result = db.Query<ODocument>($"SELECT * FROM Transaction WHERE BlockTime > '{start.ToString("yyyy-MM-dd hh:mm:ss")}' AND BlockTime < '{end.ToString("yyyy-MM-dd hh:mm:ss")}'").ToList().Select(x => x.GetField<ORID>("@ORID")).ToList();
+                        result = db.Query<ODocument>($"SELECT * FROM Transaction WHERE BlockTime >= '{start.ToString("yyyy-MM-dd HH:mm:ss")}' AND BlockTime <= '{end.ToString("yyyy-MM-dd HH:mm:ss")}'").ToList().Select(x => x.GetField<ORID>("@ORID")).ToList();
                         break;
                     case LimitType.COUNT:
                         result = db.Query<ODocument>($"TRAVERSE out() FROM (SELECT * FROM Transaction WHERE Hash = '{_options.StartTx}') LIMIT {_options.Limit} STRATEGY BREADTH_FIRST").Select(x => x.GetField<ORID>("@ORID")).ToList();
@@ -57,9 +57,9 @@ namespace fd.Coins.Clustering
                         result = db.Command($"SELECT list(inE().tAddr) as addresses FROM (TRAVERSE out() FROM (SELECT * FROM Transaction WHERE Hash = '{_options.StartTx}') WHILE $depth <= {_options.Limit} STRATEGY BREADTH_FIRST)").ToList().FirstOrDefault().GetField<List<string>>("addresses").Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();
                         break;
                     case LimitType.DATE:
-                        var start = db.Query<ODocument>($"SELECT BlockTime AS value FROM Transaction WHERE Hash = '{_options.StartTx}'").Select(x => x.GetField<DateTime>("value")).FirstOrDefault();
+                        var start = db.Query<ODocument>($"SELECT BlockTime AS value FROM Transaction WHERE Hash = '{_options.StartTx}'").Select(x => x.GetField<DateTime>("value")).FirstOrDefault().ToLocalTime();
                         var end = start.AddMinutes(_options.Limit);
-                        result = db.Command($"SELECT list(inE().tAddr) as addresses FROM Transaction WHERE BlockTime > '{start.ToString("yyyy-MM-dd hh:mm:ss")}' AND BlockTime < '{end.ToString("yyyy-MM-dd hh:mm:ss")}'").ToList().FirstOrDefault().GetField<List<string>>("addresses").Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();
+                        result = db.Command($"SELECT list(inE().tAddr) as addresses FROM Transaction WHERE BlockTime >= '{start.ToString("yyyy-MM-dd HH:mm:ss")}' AND BlockTime <= '{end.ToString("yyyy-MM-dd HH:mm:ss")}'").ToList().FirstOrDefault().GetField<List<string>>("addresses").Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();
                         break;
                     case LimitType.COUNT:
                         result = db.Command($"SELECT list(inE().tAddr) as addresses FROM (TRAVERSE out() FROM (SELECT * FROM Transaction WHERE Hash = '{_options.StartTx}') LIMIT {_options.Limit} STRATEGY BREADTH_FIRST)").ToList().FirstOrDefault().GetField<List<string>>("addresses").Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();

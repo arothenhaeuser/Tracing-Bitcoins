@@ -33,7 +33,9 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             var v1 = _result[addr1];
             var v2 = _result[addr2];
-            return Math.Sqrt(v1.Xor(v2).OfType<bool>().Count(x => x));
+            var numerator = v1.Xor(v2).OfType<bool>().Count(x => x);
+            var denominator = v1.OfType<bool>().Count(x => x) + v2.OfType<bool>().Count(x => x);
+            return (double)numerator / denominator;
         }
 
         public override void FromFile(string path)

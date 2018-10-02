@@ -4,37 +4,15 @@
     <Description>C#/.NET binary driver for OrientDB</Description>
     <VersionPrefix>0.1.12</VersionPrefix>
     <Authors>Gray Delacluyse</Authors>
-    <TargetFrameworks>net451;netstandard1.5</TargetFrameworks>
+    <TargetFrameworks>net451</TargetFrameworks>
     <AssemblyName>OrientDB-Net.binary.Innov8tive</AssemblyName>
     <PackageId>OrientDB-Net.binary.Innov8tive</PackageId>
     <PackageTags>orientdb;database;orient;.net;c#;document;graph</PackageTags>
     <PackageProjectUrl>https://github.com/Innov8tiveSoftware/OrientDB-NET.binary</PackageProjectUrl>
     <PackageLicenseUrl>http://opensource.org/licenses/MIT</PackageLicenseUrl>
     <NetStandardImplicitPackageVersion>1.6.0</NetStandardImplicitPackageVersion>
-    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard1.5' ">$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="4.0.1" />
-    <PackageReference Include="System.Collections" Version="4.0.11" />
-    <PackageReference Include="System.Collections.Concurrent" Version="4.0.12" />
-    <PackageReference Include="System.Linq" Version="4.1.0" />
-    <PackageReference Include="System.Threading" Version="4.0.11" />
-    <PackageReference Include="System.Reflection.Extensions" Version="4.0.1" />
-    <PackageReference Include="System.Numerics.Vectors" Version="4.1.1" />
-    <PackageReference Include="System.IO" Version="4.1.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
-    <Reference Include="System" />
-    <Reference Include="Microsoft.CSharp" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.5' ">
-    <PackageReference Include="System.Threading.Thread" Version="4.0.0" />
-  </ItemGroup>
-
 </Project>

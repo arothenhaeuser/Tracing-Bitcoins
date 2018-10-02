@@ -49,7 +49,8 @@ namespace fd.Coins.Clustering
                 {
                     sb.AppendLine(string.Join("\t", cluster));
                 }
-                File.WriteAllText($"Distance_{clusterSet.Dissimilarity}.txt".Replace(",", "#"), sb.ToString());
+                Directory.CreateDirectory("report");
+                File.WriteAllText(Path.Combine("report", $"Distance_{clusterSet.Dissimilarity}.txt".Replace(",", "#")), sb.ToString());
             }
 
             Console.Read();

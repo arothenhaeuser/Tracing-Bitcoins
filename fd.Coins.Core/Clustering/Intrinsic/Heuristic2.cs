@@ -41,43 +41,44 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var records = mainDB.Command($"SELECT expand(tx) FROM (SELECT inV() as tx FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").ToList();
+                var records = mainDB.Query($"SELECT tx, list(tx.inE().tAddr) as source, list(tx.outE().tAddr) as target FROM (SELECT inV() as tx FROM Link WHERE tAddr in [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]) WHERE tx.Coinbase = false AND tx.Unlinked = false GROUP BY tx").ToDictionary(x => x.GetField<ORID>("tx").ToString(), y => new List<List<string>>() { y.GetField<List<string>>("source"), y.GetField<List<string>>("target") });
+                var groups = new List<List<string>>();
                 foreach (var record in records)
                 {
-                    using (var resultDB = new ODatabase(_options))
+                    // can we identify a return address?
+                    var addr = GetChangeAddress(record, mainOptions);
+                    if (addr != null)
                     {
-                        // can we identify a return address?
-                        var addr = GetChangeAddress(record);
-                        if (addr != null)
-                        {
-                            Utils.RetryOnConcurrentFail(3, () =>
-                            {
-                                using (var mainDBp = new ODatabase(mainOptions))
-                                {
-                                    var tx = resultDB.Transaction;
-                                    try
-                                    {
-                                        var returnNode = resultDB.Select().From("Node").Where("Address").Equals(addr)?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", addr).Run();
-                                        tx.AddOrUpdate(returnNode);
-                                        var sourceAddresses = mainDBp.Command($"SELECT inE().tAddr AS address FROM {record.ORID}").ToSingle().GetField<List<string>>("address").ToList();
-                                        foreach (var address in sourceAddresses)
-                                        {
-                                            var sourceNode = resultDB.Select().From("Node").Where("Address").Equals(address)?.ToList<OVertex>().FirstOrDefault() ?? resultDB.Create.Vertex("Node").Set("Address", address).Run();
-                                            tx.AddOrUpdate(sourceNode);
-                                            tx.AddEdge(new OEdge() { OClassName = _options.DatabaseName }, returnNode, sourceNode);
-                                        }
-                                        tx.Commit();
-                                    }
-                                    catch
-                                    {
-                                        tx.Reset();
-                                        return false;
-                                    }
-                                    return true;
-                                }
-                            });
-                        }
+                        // add a new group
+                        var group = record.Value.First();
+                        group.Add(addr);
+                        groups.Add(group);
                     }
+                }
+                using (var resultDB = new ODatabase(_options))
+                {
+                    resultDB.DatabaseProperties.ORID = new ORID();
+                    // get distinct addresses from groups to create nodes
+                    var nodes = groups.SelectMany(x => x).Distinct();
+                    foreach (var node in nodes)
+                    {
+                        var record = new OVertex();
+                        record.OClassName = "Node";
+                        record.SetField("Address", node);
+                        resultDB.Transaction.Add(record);
+                    }
+                    resultDB.Transaction.Commit();
+                    // connect nodes of each group
+                    var pairs = groups.SelectMany(c => c.SelectMany(x => c, (x, y) => Tuple.Create(x, y))).Where(p => Comparer<string>.Default.Compare(p.Item1, p.Item2) < 0).Distinct().OrderBy(x => x.Item1);
+                    foreach (var pair in pairs)
+                    {
+                        var n1 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item1).ToList<OVertex>().FirstOrDefault();
+                        var n2 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item2).ToList<OVertex>().FirstOrDefault();
+                        var record = new OEdge();
+                        record.OClassName = _options.DatabaseName;
+                        resultDB.Transaction.AddEdge(record, n1, n2);
+                    }
+                    resultDB.Transaction.Commit();
                 }
             }
             using (var resultDB = new ODatabase(_options))
@@ -97,48 +98,37 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
         }
 
-        private static string GetChangeAddress(ODocument node)
+        private string GetChangeAddress(KeyValuePair<string, List<List<string>>> kvp, ConnectionOptions mainOptions)
         {
-            var outputs = GetOutputStrings(node);
-
-            var ambigous = false;
             string changeAddress = null;
-            if (outputs.Length > 1)
+            var ambiguous = false;
+            using (var mainDB = new ODatabase(mainOptions))
             {
-                if (!node.GetField<bool>("Coinbase") && !node.GetField<bool>("Unlinked"))
+                var inAddresses = kvp.Value.First();
+                var outAddresses = kvp.Value.Last();
+                foreach (var outAddress in outAddresses)
                 {
-                    foreach (var output in outputs)
+                    // address is no self-change address
+                    if (inAddresses.Contains(outAddress))
                     {
-                        var outputAddress = output.Split(':')[1];
-                        using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "root", "root"))
-                        {
-                            var inputAddresses = db.Command($"SELECT tAddr FROM (SELECT expand(inE()) FROM {node.ORID})").ToList().Select(x => x.GetField<string>("tAddr"));
-                            if (!inputAddresses.Contains(outputAddress))
-                            {
-                                if (db.Command($"SELECT count(*) FROM Link WHERE tAddr = '{outputAddress}'").ToSingle().GetField<Int64>("count") == 1) // PERFORMANCE!
-                                {
-                                    if (changeAddress == null)
-                                    {
-                                        changeAddress = outputAddress;
-                                    }
-                                    else
-                                    {
-                                        ambigous = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
+                        continue;
+                    }
+                    // address is not reused
+                    if (mainDB.Command($"SELECT count(*) FROM Link WHERE tAddr = '{outAddress}'").ToSingle().GetField<Int64>("count") != 1)
+                    {
+                        continue;
+                    }
+                    if (changeAddress == null)
+                    {
+                        changeAddress = outAddress;
+                    }
+                    else
+                    {
+                        ambiguous = true;
+                        break;
                     }
                 }
-            }
-            if (ambigous || changeAddress == null)
-            {
-                return null;
-            }
-            else
-            {
-                return changeAddress;
+                return ambiguous ? null : changeAddress;
             }
         }
 
@@ -168,7 +158,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             var v1 = _result.SelectMany(x => x.Where(y => y.Contains(addr1)));
             var v2 = _result.SelectMany(x => x.Where(y => y.Contains(addr2)));
-            return v1.SequenceEqual(v2) ? 0.0 : 1.0;
+            return (v1.Any() && v1.SequenceEqual(v2)) ? 0.0 : 1.0;
         }
     }
 }

@@ -59,6 +59,10 @@
       <Project>{3575C758-07B9-4676-8A22-E9408B49B7C0}</Project>
       <Name>fd.Coins.Core</Name>
     </ProjectReference>
+    <ProjectReference Include="..\OrientDB-Net.binary.Innov8tive\OrientDB-Net.binary.Innov8tive.csproj">
+      <Project>{181C6D6C-76A7-4419-906B-0E3651A6A302}</Project>
+      <Name>OrientDB-Net.binary.Innov8tive</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

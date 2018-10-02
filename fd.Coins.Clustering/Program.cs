@@ -14,7 +14,7 @@ namespace fd.Coins.Clustering
         {
 
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
-            var data = new DataSourceProvider("8ac3e3c9c9ebbf454f6996f4fee35db6c431a931200f453340f9d471b3223e1b", LimitType.DATE, 1);
+            var data = new DataSourceProvider("deca4025c0ccc492b775362f73b4e6c572dbb56a72d1df0433473d2e5ff8ec91", LimitType.DEPTH, 2);
             var addresses = data.GetAddresses(txgraphOptions);
             // DEBUG
             Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
@@ -24,7 +24,7 @@ namespace fd.Coins.Clustering
             algoPipe.Add(new TimeSlots());
             algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
             algoPipe.Add(new Heuristic1());
-            //algoPipe.Add(new Heuristic2());
+            algoPipe.Add(new Heuristic2());
 
 
             algoPipe.Process(txgraphOptions, addresses);

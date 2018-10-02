@@ -5,6 +5,8 @@ using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace fd.Coins.Clustering
 {
@@ -39,16 +41,15 @@ namespace fd.Coins.Clustering
             var algorithm = new AgglomerativeClusteringAlgorithm<string>(linkage);
 
             var clusteringResult = algorithm.GetClustering(new HashSet<string>(addresses));
-            //}
 
             foreach(var clusterSet in clusteringResult)
             {
-                Console.WriteLine($"########{clusterSet.Dissimilarity}########");
-                foreach(var cluster in clusterSet)
+                var sb = new StringBuilder();
+                foreach (var cluster in clusterSet)
                 {
-                    Console.WriteLine(string.Join("\t", cluster));
+                    sb.AppendLine(string.Join("\t", cluster));
                 }
-                Console.WriteLine("############");
+                File.WriteAllText($"Distance_{clusterSet.Dissimilarity}.txt".Replace(",", "#"), sb.ToString());
             }
 
             Console.Read();

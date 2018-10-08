@@ -13,7 +13,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -32,9 +32,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Aglomera">
-      <HintPath>F:\Bitcoin\Aglomera.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -55,6 +52,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Aglomera\Aglomera.csproj">
+      <Project>{8bd5aeb8-04a2-42bd-a13c-ccc63dddbc89}</Project>
+      <Name>Aglomera</Name>
+    </ProjectReference>
     <ProjectReference Include="..\fd.Coins.Core\fd.Coins.Core.csproj">
       <Project>{3575C758-07B9-4676-8A22-E9408B49B7C0}</Project>
       <Name>fd.Coins.Core</Name>

@@ -14,18 +14,9 @@ namespace fd.Coins.Core.Clustering.Intrinsic
     public class DayOfWeek : Clustering
     {
         private Dictionary<string, BitArray> _result;
+
         public DayOfWeek()
         {
-            _options = new ConnectionOptions();
-            _options.DatabaseName = "DayOfWeek";
-            _options.DatabaseType = ODatabaseType.Graph;
-            _options.HostName = "localhost";
-            _options.Password = "admin";
-            _options.Port = 2424;
-            _options.UserName = "admin";
-
-            _dimension = 1;
-
             _result = new Dictionary<string, BitArray>();
         }
 
@@ -36,11 +27,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var numerator = v1.Xor(v2).OfType<bool>().Count(x => x);
             var denominator = v1.OfType<bool>().Count(x => x) + v2.OfType<bool>().Count(x => x);
             return (double)numerator / denominator;
-        }
-
-        public override void FromFile(string path)
-        {
-            _result = new JavaScriptSerializer().Deserialize<Dictionary<string, BitArray>>(File.ReadAllText(Path.Combine(path, _options.DatabaseName + ".txt")));
         }
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
@@ -62,17 +48,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             var dist = list.Distinct();
             var ret = new BitArray(7);
-            foreach(var value in dist)
+            foreach (var value in dist)
             {
                 ret.Set(ToInt(value), true);
             }
             return ret;
-        }
-
-        public override void ToFile(string path)
-        {
-            Directory.CreateDirectory(path);
-            File.WriteAllText(Path.Combine(path, _options.DatabaseName + ".txt"), new JavaScriptSerializer().Serialize(_result));
         }
 
         private void AddToResult(Dictionary<string, List<string>> query)

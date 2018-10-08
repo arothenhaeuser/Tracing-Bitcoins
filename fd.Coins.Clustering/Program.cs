@@ -16,8 +16,9 @@ namespace fd.Coins.Clustering
         {
 
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
-            var data = new DataSourceProvider("deca4025c0ccc492b775362f73b4e6c572dbb56a72d1df0433473d2e5ff8ec91", LimitType.DEPTH, 2);
+            var data = new DataSourceProvider("dbaf14e1c476e76ea05a8b71921a46d6b06f0a950f17c5f9f1a03b8fae467f10", LimitType.DATE, 20160);
             var addresses = data.GetAddresses(txgraphOptions);
+
             // DEBUG
             Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
 
@@ -27,6 +28,7 @@ namespace fd.Coins.Clustering
             algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
             algoPipe.Add(new Heuristic1());
             algoPipe.Add(new Heuristic2());
+            algoPipe.Add(new TransactionShape());
 
 
             algoPipe.Process(txgraphOptions, addresses);
@@ -52,6 +54,8 @@ namespace fd.Coins.Clustering
                 Directory.CreateDirectory("report");
                 File.WriteAllText(Path.Combine("report", $"Distance_{clusterSet.Dissimilarity}.txt".Replace(",", "#")), sb.ToString());
             }
+            // DEBUG
+            Console.WriteLine("Clustering done.");
 
             Console.Read();
         }

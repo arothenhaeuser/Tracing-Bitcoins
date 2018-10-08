@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Web.Script.Serialization;
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 
@@ -14,6 +12,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
     public class Heuristic1 : Clustering
     {
         private List<List<string>> _result;
+        private ConnectionOptions _options;
         public Heuristic1()
         {
             _options = new ConnectionOptions();
@@ -34,11 +33,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var v1 = _result.SelectMany(x => x.Where(y => y.Contains(addr1)));
             var v2 = _result.SelectMany(x => x.Where(y => y.Contains(addr2)));
             return (v1.Any() && v1.SequenceEqual(v2)) ? 0.0 : 1.0;
-        }
-
-        public override void FromFile(string path)
-        {
-            _result = new JavaScriptSerializer().Deserialize<List<List<string>>>(File.ReadAllText(Path.Combine(path, _options.DatabaseName + ".txt")));
         }
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
@@ -99,10 +93,23 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             return items;
         }
 
-        public override void ToFile(string path)
+        public void Recreate()
         {
-            Directory.CreateDirectory(path);
-            File.WriteAllText(Path.Combine(path, _options.DatabaseName + ".txt"), new JavaScriptSerializer().Serialize(_result));
+            // check if an old version of the resulting graph already exists and delete it
+            var server = new OServer("localhost", 2424, "root", "root");
+            if (server.DatabaseExist(_options.DatabaseName, OStorageType.PLocal))
+            {
+                server.DropDatabase(_options.DatabaseName, OStorageType.PLocal);
+            }
+            // create a new graph for the address clusters
+            server.CreateDatabase(_options.DatabaseName, _options.DatabaseType, OStorageType.PLocal);
+            using (var db = new ODatabase(_options))
+            {
+                db.Command("CREATE CLASS Node EXTENDS V");
+                db.Command("CREATE PROPERTY Node.Address STRING");
+                db.Command($"CREATE CLASS {_options.DatabaseName} EXTENDS E");
+                db.Command("CREATE INDEX IndexForAddress ON Node (Address) UNIQUE_HASH_INDEX");
+            }
         }
     }
 }

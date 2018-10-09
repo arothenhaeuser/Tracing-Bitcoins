@@ -5,7 +5,9 @@ using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace fd.Coins.Clustering
@@ -16,9 +18,14 @@ namespace fd.Coins.Clustering
         {
 
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
-            var data = new DataSourceProvider("dbaf14e1c476e76ea05a8b71921a46d6b06f0a950f17c5f9f1a03b8fae467f10", LimitType.DATE, 20160);
+            var data = new DataSourceProvider("dbaf14e1c476e76ea05a8b71921a46d6b06f0a950f17c5f9f1a03b8fae467f10", LimitType.DATE, 1);
             var addresses = data.GetAddresses(txgraphOptions);
-
+            if(addresses.Count == 0)
+            {
+                return;
+            }
+            // DEBUG
+            addresses = ReadGold();
             // DEBUG
             Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
 
@@ -29,6 +36,8 @@ namespace fd.Coins.Clustering
             algoPipe.Add(new Heuristic1());
             algoPipe.Add(new Heuristic2());
             algoPipe.Add(new TransactionShape());
+            algoPipe.Add(new CommonTimes());
+            algoPipe.Add(new SocialNetwork());
 
 
             algoPipe.Process(txgraphOptions, addresses);
@@ -38,26 +47,36 @@ namespace fd.Coins.Clustering
 
             // DEBUG
             Console.WriteLine("Clustering...");
+            var sw = new Stopwatch();
+            sw.Start();
             var metric = new AddressDissimilarityMetric(algoPipe);
             var linkage = new AverageLinkage<string>(metric);
             var algorithm = new AgglomerativeClusteringAlgorithm<string>(linkage);
 
             var clusteringResult = algorithm.GetClustering(new HashSet<string>(addresses));
-
-            foreach(var clusterSet in clusteringResult)
+            var index = 0;
+            foreach(var clusterSet in clusteringResult.OrderBy(x => x.Dissimilarity))
             {
                 var sb = new StringBuilder();
+                sb.AppendLine($"Dissimilarity:{clusterSet.Dissimilarity}");
                 foreach (var cluster in clusterSet)
                 {
                     sb.AppendLine(string.Join("\t", cluster));
                 }
                 Directory.CreateDirectory("report");
-                File.WriteAllText(Path.Combine("report", $"Distance_{clusterSet.Dissimilarity}.txt".Replace(",", "#")), sb.ToString());
+                File.WriteAllText(Path.Combine("report", $"{index++}.txt".Replace(",", "#")), sb.ToString());
             }
+            sw.Stop();
             // DEBUG
-            Console.WriteLine("Clustering done.");
+            Console.WriteLine($"Clustering done. {sw.Elapsed}");
 
             Console.Read();
+        }
+
+        private static List<string> ReadGold()
+        {
+            var file = File.ReadAllLines(@"X:\repos\fd.Coins\report\[confidential]gold.txt");
+            return file.SelectMany(x => x.Split('\t')).ToList();
         }
     }
 }

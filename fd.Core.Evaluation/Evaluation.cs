@@ -47,7 +47,7 @@ namespace fd.Coins.Evaluation
                 }
                 A += NChooseK(contingencyTable[i].Sum(), 2);
             }
-            for(int j = 0; j < y1; j++)
+            for(var j = 0; j < y1; j++)
             {
                 B += NChooseK(contingencyTable.Select(row => row[j]).Sum(), 2);
             }

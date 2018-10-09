@@ -53,28 +53,5 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             }
             return ret;
         }
-
-        private void AddToResult(Dictionary<long, List<string>> query)
-        {
-            foreach (var kvp in query)
-            {
-                foreach (var address in kvp.Value)
-                {
-                    if (!string.IsNullOrEmpty(address))
-                    {
-                        var slots = new BitArray(24);
-                        slots.Set(Convert.ToInt32(kvp.Key) - 1, true);
-                        try
-                        {
-                            _result.Add(address, slots);
-                        }
-                        catch (ArgumentException)
-                        {
-                            _result[address] = _result[address].Or(slots);
-                        }
-                    }
-                }
-            }
-        }
     }
 }

@@ -74,9 +74,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Clustering\Clustering.cs" />
+    <Compile Include="Clustering\Intrinsic\CommonTimes.cs" />
     <Compile Include="Clustering\Intrinsic\DayOfWeek.cs" />
     <Compile Include="Clustering\Intrinsic\Heuristic1.cs" />
     <Compile Include="Clustering\Intrinsic\Heuristic2.cs" />
+    <Compile Include="Clustering\Intrinsic\SocialNetwork.cs" />
     <Compile Include="Clustering\Intrinsic\TimeSlots.cs" />
     <Compile Include="Clustering\Intrinsic\TotalAmounts.cs" />
     <Compile Include="Clustering\Intrinsic\TransactionShape.cs" />

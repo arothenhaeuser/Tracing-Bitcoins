@@ -54,6 +54,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                         // add a new group
                         var group = record.Value.First();
                         group.Add(addr);
+                        group.RemoveAll(x => string.IsNullOrEmpty(x));
                         groups.Add(group);
                     }
                 }

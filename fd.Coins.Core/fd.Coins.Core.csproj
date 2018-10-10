@@ -74,6 +74,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Clustering\Clustering.cs" />
+    <Compile Include="Clustering\ClusteringCollapser.cs" />
     <Compile Include="Clustering\Intrinsic\CommonTimes.cs" />
     <Compile Include="Clustering\Intrinsic\DayOfWeek.cs" />
     <Compile Include="Clustering\Intrinsic\Heuristic1.cs" />

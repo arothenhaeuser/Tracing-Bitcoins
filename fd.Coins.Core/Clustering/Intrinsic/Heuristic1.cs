@@ -41,47 +41,51 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
             var sw = new Stopwatch();
             sw.Start();
+            var inGroups = new List<List<string>>();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Where(y => !string.IsNullOrEmpty(y)).Distinct().ToList()).Where(x => x.Count > 1).Distinct().ToList();
-                using (var resultDB = new ODatabase(_options))
-                {
-                    resultDB.DatabaseProperties.ORID = new ORID();
-                    // get distinct addresses from groups to create nodes
-                    var nodes = inGroups.SelectMany(x => x).Distinct();
-                    foreach (var node in nodes)
-                    {
-                        var record = new OVertex();
-                        record.OClassName = "Node";
-                        record.SetField("Address", node);
-                        resultDB.Transaction.Add(record);
-                    }
-                    resultDB.Transaction.Commit();
-                    // connect nodes of each group
-                    var pairs = inGroups.SelectMany(c => c.SelectMany(x => c, (x, y) => Tuple.Create( x, y ))).Where(p => Comparer<string>.Default.Compare(p.Item1, p.Item2) < 0).Distinct().OrderBy(x => x.Item1);
-                    foreach (var pair in pairs)
-                    {
-                        var n1 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item1).ToList<OVertex>().FirstOrDefault();
-                        var n2 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item2).ToList<OVertex>().FirstOrDefault();
-                        var record = new OEdge();
-                        record.OClassName = _options.DatabaseName;
-                        resultDB.Transaction.AddEdge(record, n1, n2);
-                    }
-                    resultDB.Transaction.Commit();
-                }
+                inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Where(y => !string.IsNullOrEmpty(y)).Distinct().ToList()).Where(x => x.Count > 1).Distinct().ToList();
+                //using (var resultDB = new ODatabase(_options))
+                //{
+                //    resultDB.DatabaseProperties.ORID = new ORID();
+                //    // get distinct addresses from groups to create nodes
+                //    var nodes = inGroups.SelectMany(x => x).Distinct();
+                //    foreach (var node in nodes)
+                //    {
+                //        var record = new OVertex();
+                //        record.OClassName = "Node";
+                //        record.SetField("Address", node);
+                //        resultDB.Transaction.Add(record);
+                //    }
+                //    resultDB.Transaction.Commit();
+                //    // connect nodes of each group
+                //    var pairs = inGroups.SelectMany(c => c.SelectMany(x => c, (x, y) => Tuple.Create( x, y ))).Where(p => Comparer<string>.Default.Compare(p.Item1, p.Item2) < 0).Distinct().OrderBy(x => x.Item1);
+                //    foreach (var pair in pairs)
+                //    {
+                //        var n1 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item1).ToList<OVertex>().FirstOrDefault();
+                //        var n2 = resultDB.Select().From("Node").Where("Address").Equals(pair.Item2).ToList<OVertex>().FirstOrDefault();
+                //        var record = new OEdge();
+                //        record.OClassName = _options.DatabaseName;
+                //        resultDB.Transaction.AddEdge(record, n1, n2);
+                //    }
+                //    resultDB.Transaction.Commit();
+                //}
             }
-            using (var resultDB = new ODatabase(_options))
-            {
-                // get the root of each connected component in the graph
-                var roots = resultDB.Command("SELECT distinct(traversedElement(0)) AS root FROM (TRAVERSE * FROM V)").ToList().Select(x => x.GetField<ORID>("root"));
-                // traverse from each root to get addresses of each connected component as list
-                foreach (var root in roots)
-                {
-                    var cluster = resultDB.Command($"TRAVERSE * FROM {root.RID}").ToList().Select(x => x.GetField<string>("Address")).Where(x => !string.IsNullOrEmpty(x)).ToList();
-                    if (cluster.Count() > 1)
-                        _result.Add(cluster);
-                }
-            }
+            //using (var resultDB = new ODatabase(_options))
+            //{
+            //    // get the root of each connected component in the graph
+            //    var roots = resultDB.Command("SELECT distinct(traversedElement(0)) AS root FROM (TRAVERSE * FROM V)").ToList().Select(x => x.GetField<ORID>("root"));
+            //    // traverse from each root to get addresses of each connected component as list
+            //    foreach (var root in roots)
+            //    {
+            //        var cluster = resultDB.Command($"TRAVERSE * FROM {root.RID}").ToList().Select(x => x.GetField<string>("Address")).Where(x => !string.IsNullOrEmpty(x)).ToList();
+            //        if (cluster.Count() > 1)
+            //            _result.Add(cluster);
+            //    }
+            //}
+            var cc = new ClusteringCollapser();
+            cc.Collapse(inGroups);
+            _result = cc.Clustering;
             sw.Stop();
             // DEBUG
             Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");

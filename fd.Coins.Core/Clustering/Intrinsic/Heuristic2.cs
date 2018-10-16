@@ -43,10 +43,18 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             using (var mainDB = new ODatabase(mainOptions))
             {
                 var records = mainDB.Query($"SELECT tx, list(tx.inE().tAddr) as source, list(tx.outE().tAddr) as target FROM (SELECT inV() as tx FROM Link WHERE tAddr in [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]) WHERE tx.Coinbase = false AND tx.Unlinked = false GROUP BY tx").ToDictionary(x => x.GetField<ORID>("tx").ToString(), y => new List<List<string>>() { y.GetField<List<string>>("source"), y.GetField<List<string>>("target") });
+                var occurrences = mainDB.Command($"SELECT tAddr AS address, count(tAddr) AS count FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => $"'{x}'"))}] GROUP BY tAddr").ToList().ToDictionary(x => x.GetField<string>("address"), y => (int)y.GetField<long>("count"));
+                // DEBUG
+                Console.WriteLine("\tData retrieved.");
                 foreach (var record in records)
                 {
+                    // clean the record
+                    record.Value[0] = record.Value[0].Distinct().ToList();
+                    record.Value[1] = record.Value[0].Distinct().ToList();
+                    record.Value[0].RemoveAll(x => x == null);
+                    record.Value[1].RemoveAll(x => x == null);
                     // can we identify a return address?
-                    var addr = GetChangeAddress(record, mainOptions);
+                    var addr = GetChangeAddress(record, occurrences, mainOptions);
                     if (addr != null)
                     {
                         // add a new group
@@ -64,19 +72,18 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
         }
 
-        private string GetChangeAddress(KeyValuePair<string, List<List<string>>> kvp, ConnectionOptions mainOptions)
+        private string GetChangeAddress(KeyValuePair<string, List<List<string>>> kvp, Dictionary<string, int> occurrences, ConnectionOptions mainOptions)
         {
             string changeAddress = null;
             var ambiguous = false;
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var inAddresses = kvp.Value.First().Distinct().ToList();
-                var outAddresses = kvp.Value.Last().Distinct().ToList();
+                var inAddresses = kvp.Value[0];
+                var outAddresses = kvp.Value[1];
                 if(inAddresses.Count == 0 || outAddresses.Count == 0)
                 {
                     return null;
                 }
-                var occurrences = mainDB.Command($"SELECT tAddr AS address, count(tAddr) AS count FROM Link WHERE tAddr IN [{string.Join(",", outAddresses.Select(x => $"'{x}'"))}] GROUP BY tAddr").ToList().ToDictionary(x => x.GetField<string>("address"), y => (int)y.GetField<long>("count"));
                 foreach (var outAddress in outAddresses)
                 {
                     // address is no self-change address

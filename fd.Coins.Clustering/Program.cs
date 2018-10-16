@@ -30,13 +30,13 @@ namespace fd.Coins.Clustering
             Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
 
             var algoPipe = new Pipeline();
-            //algoPipe.Add(new TotalAmounts());
-            //algoPipe.Add(new TimeSlots());
-            //algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
-            //algoPipe.Add(new TransactionShape());
-            //algoPipe.Add(new CommonTimes());
-            //algoPipe.Add(new SocialNetwork());
-            //algoPipe.Add(new Heuristic1());
+            algoPipe.Add(new TotalAmounts());
+            algoPipe.Add(new TimeSlots());
+            algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
+            algoPipe.Add(new TransactionShape());
+            algoPipe.Add(new CommonTimes());
+            algoPipe.Add(new SocialNetwork());
+            algoPipe.Add(new Heuristic1());
             algoPipe.Add(new Heuristic2());
 
 

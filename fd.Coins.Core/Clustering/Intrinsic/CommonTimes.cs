@@ -22,7 +22,8 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var v2 = _result[addr2];
             var numerator = v1.Select((x, i) => Math.Pow(x - v2[i], 2)).Sum();
             var denominator = v1.Select(x => Math.Pow(x, 2)).Sum() + v2.Select(x => Math.Pow(x, 2)).Sum();
-            return numerator / denominator;
+            var res = numerator / denominator;
+            return Double.IsNaN(res) ? 0 : res;
         }
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)

@@ -21,7 +21,10 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             var v1 = _result[addr1];
             var v2 = _result[addr2];
-            return 1 - ((double)v1.Intersect(v2).Count() / v1.Union(v2).Count());
+            var numerator = (double)v1.Intersect(v2).Count();
+            var denominator = v1.Union(v2).Count();
+            var res = 1 - (numerator / denominator);
+            return Double.IsNaN(res) ? 0 : res;
         }
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)

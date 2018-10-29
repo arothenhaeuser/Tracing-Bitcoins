@@ -25,14 +25,14 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
             _result = new List<List<string>>();
 
-            Recreate();
+            //Recreate();
         }
 
         public override double Distance(string addr1, string addr2)
         {
-            var v1 = _result.SelectMany(x => x.Where(y => y.Contains(addr1)));
-            var v2 = _result.SelectMany(x => x.Where(y => y.Contains(addr2)));
-            return (v1.Any() && v1.SequenceEqual(v2)) ? 0.0 : 1.0;
+            var v1 = _result.FirstOrDefault(x => x.Contains(addr1));
+            var v2 = _result.FirstOrDefault(x => x.Contains(addr2));
+            return (v1 != null && v2 != null && v1.SequenceEqual(v2)) ? 0.0 : 1.0;
         }
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)

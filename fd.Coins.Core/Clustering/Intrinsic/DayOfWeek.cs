@@ -26,7 +26,8 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var v2 = _result[addr2];
             var numerator = v1.Xor(v2).OfType<bool>().Count(x => x);
             var denominator = v1.OfType<bool>().Count(x => x) + v2.OfType<bool>().Count(x => x);
-            return (double)numerator / denominator;
+            var res = (double)numerator / denominator;
+            return Double.IsNaN(res) ? 0 : res;
         }
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)

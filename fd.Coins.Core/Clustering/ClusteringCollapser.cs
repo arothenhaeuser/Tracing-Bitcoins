@@ -37,8 +37,8 @@ namespace fd.Coins.Core.Clustering
             }
             else
             {
-                var firstIndex = _inventory[seen.First()];
                 var indexList = seen.Select(x => _inventory[x]).Distinct().OrderByDescending(x => x).ToList();
+                var firstIndex = indexList.Last();
                 indexList.Remove(firstIndex);
                 foreach (var index in indexList)
                 {
@@ -48,12 +48,12 @@ namespace fd.Coins.Core.Clustering
                     }
                     _collapsed[firstIndex] = _collapsed[firstIndex].Union(_collapsed[index]).ToList();
                 }
+                _collapsed[firstIndex].AddRange(unseen);
+                UpdateInventory(unseen, firstIndex);
                 foreach (var index in indexList)
                 {
                     Remove(index);
                 }
-                _collapsed[firstIndex].AddRange(unseen);
-                UpdateInventory(unseen, firstIndex);
             }
         }
 

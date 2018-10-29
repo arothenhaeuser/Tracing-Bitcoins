@@ -1,5 +1,7 @@
 ﻿using OrientDB_Net.binary.Innov8tive.API;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace fd.Coins.Clustering
 {
@@ -19,20 +21,15 @@ namespace fd.Coins.Clustering
 
         public void Process(ConnectionOptions sourceDatabase, List<string> candidateAddresses)
         {
-            foreach(var algo in _algos)
+            Parallel.ForEach(_algos, (algo) =>
             {
                 algo.Run(sourceDatabase, candidateAddresses);
-            }
+            });
         }
 
         public double Distance(string addr1, string addr2)
         {
-            double distance = 0;
-            foreach (var algo in _algos)
-            {
-                distance += algo.Distance(addr1, addr2);
-            }
-            return distance / _algos.Count;
+            return _algos.AsParallel().Sum(x => x.Distance(addr1, addr2)) / _algos.Count;
         }
     }
 }

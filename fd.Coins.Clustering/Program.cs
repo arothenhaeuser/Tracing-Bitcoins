@@ -33,11 +33,11 @@ namespace fd.Coins.Clustering
             algoPipe.Add(new TotalAmounts());
             algoPipe.Add(new TimeSlots());
             algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
-            algoPipe.Add(new Heuristic1());
-            algoPipe.Add(new Heuristic2());
             algoPipe.Add(new TransactionShape());
             algoPipe.Add(new CommonTimes());
             algoPipe.Add(new SocialNetwork());
+            algoPipe.Add(new Heuristic1());
+            algoPipe.Add(new Heuristic2());
 
 
             algoPipe.Process(txgraphOptions, addresses);
@@ -75,7 +75,7 @@ namespace fd.Coins.Clustering
 
         private static List<string> ReadGold()
         {
-            var file = File.ReadAllLines(@"X:\repos\fd.Coins\report\[confidential]gold.txt");
+            var file = File.ReadAllLines(@"X:\repos\fd.Coins\gold.reduced.txt");
             return file.SelectMany(x => x.Split('\t')).ToList();
         }
     }

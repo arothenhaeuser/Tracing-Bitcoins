@@ -31,8 +31,9 @@ namespace fd.Coins.TagsExtract
                 var content = body.ChildNodes.First(x => x.Name == "div");
                 var table = content.ChildNodes.First(x => x.Name == "table");
                 var tbody = table.ChildNodes.First(x => x.Name == "tbody");
-                containsData = tbody.ChildNodes.OfType<HtmlNode>().Count() > 0;
-                foreach(var line in tbody.ChildNodes.Where(x => x.GetType() != typeof(HtmlTextNode)))
+                var entries = tbody.ChildNodes.Where(x => x.GetType() != typeof(HtmlTextNode));
+                containsData = entries.Count() > 0;
+                foreach(var line in entries)
                 {
                     var items = line.ChildNodes.Select(x => x.ChildNodes.Select(y => y.Name).Contains("img") ? x.LastChild.Attributes["src"].Value.Contains("red") ? false.ToString() : true.ToString() : x.InnerText.Trim()).Where(x => !string.IsNullOrEmpty(x));
                     var row = string.Join("\t", items);

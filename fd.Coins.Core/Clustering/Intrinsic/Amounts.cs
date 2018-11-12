@@ -8,11 +8,11 @@ using System.Reflection;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
 {
-    public class TotalAmounts : Clustering
+    public class Amounts : Clustering
     {
         private Dictionary<string, double> _result;
 
-        public TotalAmounts()
+        public Amounts()
         {
             _result = new Dictionary<string, double>();
         }
@@ -35,7 +35,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                _result = mainDB.Query($"SELECT avg(inV().inE().amount).asLong() as total, tAddr as address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => (double)y.GetField<long>("total"));
+                _result = mainDB.Query($"SELECT avg(amount).asLong() as total, tAddr as address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => (double)y.GetField<long>("total"));
             }
             sw.Stop();
             // DEBUG

@@ -4,13 +4,18 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Web.Script.Serialization;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
 {
+    /// <summary>
+    /// Feature Extractor: Extracts the hour of the day from the BlockTime. (2018-01-01 12:34:56 -> 12)
+    /// Outputs a 24 entries vector indicating which hours of the day have been observed.
+    /// Example:
+    /// hotd:   0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20  21  22  23  24
+    /// feat:   1   0   0   0   0   0   0   1   1   1   0   0   0   0   1   0   1   1   1   0   0   0   0   0   0
+    /// </summary>
     public class TimeSlots : Clustering
     {
         private Dictionary<string, BitArray> _result;

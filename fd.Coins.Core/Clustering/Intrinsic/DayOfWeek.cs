@@ -4,13 +4,18 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Web.Script.Serialization;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
 {
+    /// <summary>
+    /// Feature Extractor: Extracts the day of the week from the BlockTime. (2018-01-01 12:34:56 -> Mo)
+    /// Outputs a 7 entries vector indicating which days of the week have been observed.
+    /// Example:
+    /// dotw:   0   1   2   3   4   5   6   7
+    /// feat:   0   0   0   1   0   0   0   1
+    /// </summary>
     public class DayOfWeek : Clustering
     {
         private Dictionary<string, BitArray> _result;
@@ -27,7 +32,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var numerator = v1.Xor(v2).OfType<bool>().Count(x => x);
             var denominator = v1.OfType<bool>().Count(x => x) + v2.OfType<bool>().Count(x => x);
             var res = (double)numerator / denominator;
-            return Double.IsNaN(res) ? 0 : res;
+            return double.IsNaN(res) ? 0 : res;
         }
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)

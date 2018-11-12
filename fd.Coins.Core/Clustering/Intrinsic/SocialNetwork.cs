@@ -8,6 +8,14 @@ using OrientDB_Net.binary.Innov8tive.API;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
 {
+    /// <summary>
+    /// Feature Extractor: Extracts the social network from transactions.
+    /// Outputs two lists, one for payers, one for payees.
+    /// Example:
+    /// TX:     (A) ->  XXXX   ->  C
+    ///         B   ->  XXXX   ->  D
+    /// feat:   [B][C,D]
+    /// </summary>
     public class SocialNetwork : Clustering
     {
         private Dictionary<string, List<string>> _result;

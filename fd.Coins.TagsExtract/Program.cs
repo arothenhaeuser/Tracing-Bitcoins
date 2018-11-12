@@ -16,6 +16,30 @@ namespace fd.Coins.TagsExtract
     {
         static void Main(string[] args)
         {
+            //Parse();
+            Clean();
+            Console.Read();
+        }
+
+        static void Clean()
+        {
+            var lines = File.ReadAllLines("tags.txt");
+            var table = lines.Select(x => x.Split('\t'));
+            var lookup = table.ToLookup(x => x[2], x => x[0]);
+            var sb = new StringBuilder();
+            foreach(var entry in lookup)
+            {
+                if(entry.Count() > 1)
+                {
+                    sb.AppendLine(string.Join("\t", entry.ToList()));
+                }
+            }
+            File.WriteAllText("gold (tags).txt", sb.ToString());
+            Console.Read();
+        }
+
+        static void Parse()
+        {
             var offset = 0;
             var containsData = true;
             var sb = new StringBuilder();
@@ -33,7 +57,7 @@ namespace fd.Coins.TagsExtract
                 var tbody = table.ChildNodes.First(x => x.Name == "tbody");
                 var entries = tbody.ChildNodes.Where(x => x.GetType() != typeof(HtmlTextNode));
                 containsData = entries.Count() > 0;
-                foreach(var line in entries)
+                foreach (var line in entries)
                 {
                     var items = line.ChildNodes.Select(x => x.ChildNodes.Select(y => y.Name).Contains("img") ? x.LastChild.Attributes["src"].Value.Contains("red") ? false.ToString() : true.ToString() : x.InnerText.Trim()).Where(x => !string.IsNullOrEmpty(x));
                     var row = string.Join("\t", items);
@@ -46,7 +70,6 @@ namespace fd.Coins.TagsExtract
             }
             File.WriteAllText("tags.txt", sb.ToString());
             Console.WriteLine("DONE");
-            Console.Read();
         }
     }
 }

@@ -62,7 +62,9 @@ namespace fd.Coins.Core.NetworkConnector
             {
                 using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var nodes = db.Select().From("Transaction").Where("Unlinked").Equals(true).Limit(50000).ToList<OVertex>();
+                    var prioHashes = File.ReadAllLines(@"").Where(x => x.Length == 64).Distinct().ToList();
+                    var nodes = db.Query<OVertex>($"SELECT * FROM (SELECT * FROM Transaction WHERE Hash IN [{string.Join(",", prioHashes.Select(x => $"'{x}'"))}]) WHERE Unlinked = true LIMIT 100000");
+                    //var nodes = db.Select().From("Transaction").Where("Unlinked").Equals(true).Limit(50000).ToList<OVertex>();
                     foreach (var node in nodes)
                     {
                         var transaction = db.Transaction;

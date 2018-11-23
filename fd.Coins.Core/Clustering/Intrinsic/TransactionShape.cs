@@ -37,7 +37,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var v1 = _result[addr1];
             var v2 = _result[addr2];
             var numerator = Math.Sqrt(Math.Pow(v1[0] - v2[0], 2) + Math.Pow(v1[1] - v2[1], 2));
-            var denominator = v1.Select(x => Math.Pow(x, 2)).Sum() + v2.Select(x => Math.Pow(x, 2)).Sum();
+            var denominator = v1.Sum() + v2.Sum();
             var res = numerator / denominator;
             return Double.IsNaN(res) ? 0 : res;
         }

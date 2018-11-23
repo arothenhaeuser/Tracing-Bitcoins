@@ -27,10 +27,10 @@ namespace fd.Coins.Core.Clustering.Intrinsic
         {
             var v1 = _result[addr1];
             var v2 = _result[addr2];
-            var res = v1.Select((x, i) => Math.Sqrt(Math.Pow(x - v2[i], 2)) / Math.Sqrt(Math.Pow(x + v2[i], 2))).Sum();
-            //var numerator = v1.Select((x, i) => Math.Pow(x - v2[i], 2)).Sum();
-            //var denominator = v1.Select(x => Math.Pow(x, 2)).Sum() + v2.Select(x => Math.Pow(x, 2)).Sum();
-            //var res = numerator / denominator;
+            //var res = v1.Select((x, i) => Math.Sqrt(Math.Pow(x - v2[i], 2)) / Math.Sqrt(Math.Pow(x + v2[i], 2))).Sum();
+            var numerator = Math.Sqrt(v1.Select((x, i) => Math.Pow(x - v2[i], 2)).Sum());
+            var denominator = v1.Sum() + v2.Sum();
+            var res = numerator / denominator;
             return double.IsNaN(res) ? 0 : res;
         }
 

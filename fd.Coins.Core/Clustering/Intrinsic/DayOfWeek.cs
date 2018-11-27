@@ -43,7 +43,19 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                _result = mainDB.Query($"SELECT list($day) as day, tAddr as address FROM Link LET $day = outV().BlockTime.format('E') WHERE tAddr in [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => ToBitArray(y.GetField<List<string>>("day")));
+                foreach (var address in addresses)
+                {
+                    var kvp = mainDB.Query($"SELECT list($day) as day FROM Link LET $day = outV().BlockTime.format('E') WHERE tAddr = '{address}'").Select(x => new KeyValuePair<string, BitArray>(address, ToBitArray(x.GetField<List<string>>("day")))).First();
+                    try
+                    {
+                        _result.Add(kvp.Key, kvp.Value);
+                    }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine(address + " not in DB?");
+                    }
+                    Console.WriteLine(address + " done.");
+                }
             }
             sw.Stop();
             // DEBUG

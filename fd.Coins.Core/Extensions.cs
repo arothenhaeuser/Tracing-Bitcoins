@@ -73,5 +73,22 @@ namespace fd.Coins.Core
                 self.AddEdge(edge, from, to);
             }
         }
+
+        public static void Merge<T1, T2>(this Dictionary<T1, T2> self, Dictionary<T1, T2> other, Func<T2, T2, T2> strategy)
+        {
+            foreach (var item in other)
+            {
+                var key = item.Key;
+                var value = item.Value;
+                if (self.ContainsKey(key))
+                {
+                    self[key] = strategy(self[key], value);
+                }
+                else
+                {
+                    self.Add(key, value);
+                }
+            }
+        }
     }
 }

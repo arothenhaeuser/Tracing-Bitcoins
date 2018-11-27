@@ -16,26 +16,26 @@ namespace fd.Coins.Clustering
     {
         static void Main(string[] args)
         {
-
             var txgraphOptions = new ConnectionOptions() { DatabaseName = "txgraph", DatabaseType = ODatabaseType.Graph, HostName = "localhost", Password = "admin", Port = 2424, UserName = "admin" };
-            var data = new DataSourceProvider("dbaf14e1c476e76ea05a8b71921a46d6b06f0a950f17c5f9f1a03b8fae467f10", LimitType.DATE, 1);
-            var addresses = data.GetAddresses(txgraphOptions);
-            if(addresses.Count == 0)
-            {
-                return;
-            }
+            //var data = new DataSourceProvider("dbaf14e1c476e76ea05a8b71921a46d6b06f0a950f17c5f9f1a03b8fae467f10", LimitType.DATE, 1);
+            //var addresses = data.GetAddresses(txgraphOptions);
+            //if(addresses.Count == 0)
+            //{
+            //    return;
+            //}
             // DEBUG
-            addresses = ReadGold();
+            var addresses = ReadGold();
             // DEBUG
             Console.WriteLine($"{addresses.Count} addresses of interest will be processed...");
 
             var algoPipe = new Pipeline();
             algoPipe.Add(new TotalAmounts());
+            algoPipe.Add(new Amounts());
+            algoPipe.Add(new SocialNetwork());
             algoPipe.Add(new TimeSlots());
             algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
             algoPipe.Add(new TransactionShape());
             algoPipe.Add(new CommonTimes());
-            algoPipe.Add(new SocialNetwork());
             algoPipe.Add(new Heuristic1());
             algoPipe.Add(new Heuristic2());
 
@@ -55,10 +55,10 @@ namespace fd.Coins.Clustering
 
             var clusteringResult = algorithm.GetClustering(new HashSet<string>(addresses));
             var index = 0;
-            foreach(var clusterSet in clusteringResult.OrderBy(x => x.Dissimilarity))
+            foreach (var clusterSet in clusteringResult.OrderBy(x => x.Dissimilarity))
             {
                 var sb = new StringBuilder();
-                sb.AppendLine($"Dissimilarity:{clusterSet.Dissimilarity}");
+                sb.AppendLine($"{clusterSet.Dissimilarity}");
                 foreach (var cluster in clusterSet)
                 {
                     sb.AppendLine(string.Join("\t", cluster));
@@ -75,8 +75,8 @@ namespace fd.Coins.Clustering
 
         private static List<string> ReadGold()
         {
-            var file = File.ReadAllLines(@"X:\repos\fd.Coins\gold.reduced.txt");
-            return file.SelectMany(x => x.Split('\t')).ToList();
+            var file = File.ReadAllLines(@"F:\Data\cleaned_gold (sarah thibault misc tags).txt").Skip(40).Take(20);
+            return file.SelectMany(x => x.Split('\t')).Distinct().ToList();
         }
     }
 }

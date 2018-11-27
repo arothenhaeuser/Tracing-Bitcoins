@@ -35,7 +35,19 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                _result = mainDB.Query($"SELECT avg(amount).asLong() as total, tAddr as address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => (double)y.GetField<long>("total"));
+                foreach (var address in addresses)
+                {
+                    var kvp = mainDB.Query($"SELECT avg(amount).asLong() as total FROM Link WHERE tAddr = '{address}'").Select(x => new KeyValuePair<string, double>(address, (double)x.GetField<long>("total"))).First();
+                    try
+                    {
+                        _result.Add(kvp.Key, kvp.Value);
+                    }
+                    catch
+                    {
+                        Console.WriteLine(address + " not in DB?");
+                    }
+                    Console.WriteLine(address + " done.");
+                }
             }
             sw.Stop();
             // DEBUG

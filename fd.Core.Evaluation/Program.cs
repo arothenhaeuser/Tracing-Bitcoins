@@ -17,14 +17,14 @@ namespace fd.Coins.Evaluation
     {
         static void Main(string[] args)
         {
-            var results = new Dictionary<double, List<double>>();
+            var results = new Dictionary<string, List<double>>();
             var evalConf = ReadConfig(@"conf.txt");
             var gold = new List<List<string>>();
             gold = File.ReadAllLines(evalConf.Gold).Select(x => x.Trim().Split('\t').ToList()).ToList();
             var c1 = new List<List<string>>();
             var sw = new Stopwatch();
             sw.Start();
-            for(var i = 0; i < evalConf.Clusters.Count(); i++)
+            for (var i = 0; i < evalConf.Clusters.Count(); i++)
             {
                 c1 = File.ReadAllLines(evalConf.Clusters[i]).Select(x => x.Trim().Split('\t').ToList()).ToList();
 
@@ -42,14 +42,15 @@ namespace fd.Coins.Evaluation
                 Console.WriteLine("Recall:\t\t\t" + rec);
                 Console.WriteLine("F1:\t\t\t" + f1);
 
-                results.Add(double.Parse(Path.GetFileNameWithoutExtension(evalConf.Clusters[i])), new List<double>() { ri, ari, acc, pre, rec, f1 });
+                var dissim = double.Parse(File.ReadAllLines(evalConf.Clusters[i]).First().Replace("Dissimilarity:", ""));
+                results.Add(Path.GetFileNameWithoutExtension(evalConf.Clusters[i]), new List<double>() { ri, ari, acc, pre, rec, f1, dissim });
             }
             sw.Stop();
             Console.WriteLine(sw.Elapsed);
 
             var byARIThenRI = results.OrderByDescending(x => x.Value[1]).ThenByDescending(x => x.Value[0]);
 
-            File.WriteAllText("results.txt", string.Join("\n", byARIThenRI.Select(x => $"{x.Key}.txt [RI:{x.Value[0]}, ARI:{x.Value[1]}, Acc:{x.Value[2]}, P:{x.Value[3]}, R:{x.Value[4]}, F1:{x.Value[5]}")));
+            File.WriteAllText("results.txt", string.Join("\n", byARIThenRI.Select(x => $"{x.Key}.txt [Dissim: {x.Value[6]}, ARI:{x.Value[1]}, Acc:{x.Value[2]}, P:{x.Value[3]}, R:{x.Value[4]}, F1:{x.Value[5]}, RI:{x.Value[0]}")));
 
             Console.Read();
         }
@@ -59,7 +60,8 @@ namespace fd.Coins.Evaluation
             var c = new EvalConf();
             var f = File.ReadAllLines(path);
             c.Gold = f.Where(x => x.StartsWith("g:")).First().Replace("g:", "");
-            c.Clusters = f.Where(x => x.StartsWith("c:")).Select(x => x.Replace("c:", "")).ToArray();
+            var clusterPath = f.Where(x => x.StartsWith("c:")).First().Replace("c:", "");
+            c.Clusters = Directory.GetFiles(clusterPath);
             return c;
         }
     }

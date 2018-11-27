@@ -16,8 +16,9 @@ namespace fd.Coins.Evaluation
 
             var n = gold.SelectMany(x => x).Union(rc.SelectMany(x => x)).Count();
             double N = n * (n - 1) / 2;
-
+            //together in both
             double a = pairs1.Intersect(pairs2, new PairComparer<T>()).Count();
+            //separate in both
             var b = N - (pairs1.Count() + pairs2.Count() - a);
 
             return (a + b) / N;
@@ -25,13 +26,18 @@ namespace fd.Coins.Evaluation
 
         public static double AdjustedRandIndex<T>(IEnumerable<IEnumerable<T>> gold, IEnumerable<IEnumerable<T>> clustering)
         {
+            // get list of all elements occurring in both clusterings
             var known = gold.SelectMany(x => x).Intersect(clustering.SelectMany(x => x));
-            var rg = gold.Select(x => x.Intersect(known)).Where(x => x.Count() > 1);
-            var rc = clustering.Select(x => x.Intersect(known)).Where(x => x.Count() > 1);
+            // remove elements not occurring in other clustering
+            var rg = gold.Select(x => x.Intersect(known));
+            var rc = clustering.Select(x => x.Intersect(known));
+            // get dimensions of contingency table
             var x1 = rg.Count();
             var y1 = rc.Count();
+            // get both clusterings as array of enumerables
             var c1 = rg.ToArray();
             var c2 = rc.ToArray();
+            // initialize contingency table
             var contingencyTable = new int[x1][];
             for (var i = 0; i < x1; i++)
             {
@@ -53,7 +59,10 @@ namespace fd.Coins.Evaluation
             }
             var n = contingencyTable.SelectMany(items => items).Sum();
             D = NChooseK(n, 2);
-            return (C-(A*B/D))/(((A+B)/2)-(A * B /D));
+            var index = C;
+            var expected = A * B / D;
+            var max = (A + B) / 2;
+            return (C-(A*B/D)) / (((A+B)/2)-(A * B /D));
         }
 
         public static double Accuracy<T>(IEnumerable<IEnumerable<T>> clustering, IEnumerable<IEnumerable<T>> gold)
@@ -155,7 +164,7 @@ namespace fd.Coins.Evaluation
             return 2 * p * r / (p + r);
         }
 
-        private static double NChooseK(int n, int k)
+        public static double NChooseK(int n, int k)
         {
             if (n == 0) return 0;
             if (n < k) return 0;

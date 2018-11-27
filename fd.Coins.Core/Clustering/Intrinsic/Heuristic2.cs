@@ -42,27 +42,36 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var groups = new List<List<string>>();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                var records = mainDB.Query($"SELECT tx, list(tx.inE().tAddr) as source, list(tx.outE().tAddr) as target FROM (SELECT inV() as tx FROM Link WHERE tAddr in [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]) WHERE tx.Coinbase = false AND tx.Unlinked = false GROUP BY tx").ToDictionary(x => x.GetField<ORID>("tx").ToString(), y => new List<List<string>>() { y.GetField<List<string>>("source"), y.GetField<List<string>>("target") });
-                var occurrences = mainDB.Command($"SELECT tAddr AS address, count(tAddr) AS count FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => $"'{x}'"))}] GROUP BY tAddr").ToList().ToDictionary(x => x.GetField<string>("address"), y => (int)y.GetField<long>("count"));
-                // DEBUG
-                Console.WriteLine("\tData retrieved.");
-                foreach (var record in records)
+                foreach (var address in addresses)
                 {
+                    var record = mainDB.Query($"SELECT tx, list(tx.inE().tAddr) as source, list(tx.outE().tAddr) as target FROM (SELECT inV() as tx FROM Link WHERE tAddr = '{address}') WHERE tx.Coinbase = false AND tx.Unlinked = false GROUP BY tx").Select(x => new KeyValuePair<string, List<List<string>>>(x.GetField<ORID>("tx").ToString(), new List<List<string>>() { x.GetField<List<string>>("source"), x.GetField<List<string>>("target") })).First();
+                    // DEBUG
+                    Console.WriteLine("\tData retrieved.");
+
                     // clean the record
                     record.Value[0] = record.Value[0].Distinct().ToList();
                     record.Value[1] = record.Value[0].Distinct().ToList();
                     record.Value[0].RemoveAll(x => x == null);
                     record.Value[1].RemoveAll(x => x == null);
                     // can we identify a return address?
-                    var addr = GetChangeAddress(record, occurrences, mainOptions);
-                    if (addr != null)
+                    var occurrences = new Dictionary<string, int>();
+                    foreach(var outAddr in record.Value[1])
                     {
-                        // add a new group
-                        var group = record.Value.First();
-                        group.Add(addr);
-                        group.RemoveAll(x => string.IsNullOrEmpty(x));
-                        groups.Add(group);
+                        var count = mainDB.Query($"SELECT COUNT(*) FROM Link WHERE tAddr = '{outAddr}'").SingleOrDefault()?.GetField<long>("count");
+                        if(count != null)
+                        {
+                            occurrences.Add(outAddr, (int)count);
+                        }
                     }
+                        var addr = GetChangeAddress(record, occurrences, mainOptions);
+                        if (addr != null)
+                        {
+                            // add a new group
+                            var group = record.Value.First();
+                            group.Add(addr);
+                            group.RemoveAll(x => string.IsNullOrEmpty(x));
+                            groups.Add(group);
+                        }
                 }
             }
             var cc = new ClusteringCollapser();
@@ -80,7 +89,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 var inAddresses = kvp.Value[0];
                 var outAddresses = kvp.Value[1];
-                if(inAddresses.Count == 0 || outAddresses.Count == 0)
+                if (inAddresses.Count == 0 || outAddresses.Count == 0)
                 {
                     return null;
                 }

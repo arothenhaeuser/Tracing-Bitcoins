@@ -43,7 +43,20 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                _result = mainDB.Query($"SELECT tAddr AS address, list(outV().inE().tAddr) AS payers, list(inv().outE().tAddr) AS payees FROM Link WHERE tAddr in [{string.Join(",", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => y.GetField<List<string>>("payers").Union(y.GetField<List<string>>("payees")).ToList());
+                foreach (var address in addresses)
+                {
+                    var kvp = new KeyValuePair<string, List<string>>(address, mainDB.Query($"SELECT set(network) as network FROM (SELECT unionAll($a, $b, $c) as network FROM Link LET $a = inV().inE().tAddr, $b = inV().outE().tAddr, $c = outV().inE().tAddr WHERE tAddr = '{address}' LIMIT 10)").First().GetField<List<string>>("network"));
+                    //var kvp = mainDB.Query($"SELECT list(outV().inE().tAddr) AS payers, list(inv().outE().tAddr) AS payees FROM Link WHERE tAddr = '{address}'").Select(x => new KeyValuePair<string, List<string>>(address, x.GetField<List<string>>("payers").Union(x.GetField<List<string>>("payees")).ToList())).First();
+                    try
+                    {
+                        _result.Add(kvp.Key, kvp.Value);
+                    }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine(address + " not in DB?");
+                    }
+                    Console.WriteLine(address + " done.");
+                }
             }
             sw.Stop();
             // DEBUG

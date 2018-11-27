@@ -42,7 +42,19 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var inGroups = new List<List<string>>();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                inGroups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr IN [{string.Join(",", addresses.Select(x => "'" + x + "'"))}]").Select(x => x.GetField<List<string>>("address").Where(y => !string.IsNullOrEmpty(y)).Distinct().ToList()).Where(x => x.Count > 1).Distinct().ToList();
+                foreach (var address in addresses)
+                {
+                    var groups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr = '{address}'").SelectMany(x => x.GetField<List<string>>("address")).Where(y => !string.IsNullOrEmpty(y)).Where(x => x.Count() > 1).Distinct().ToList();
+                    try
+                    {
+                        inGroups.Add(groups);
+                    }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine(address + " not in DB?");
+                    }
+                    Console.WriteLine(address + " done.");
+                }
             }
             var cc = new ClusteringCollapser();
             cc.Collapse(inGroups);

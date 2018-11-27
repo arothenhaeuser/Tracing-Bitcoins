@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace fd.Coins.Core.Clustering.Intrinsic
 {
@@ -25,7 +26,19 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
-                _result = mainDB.Query($"SELECT tAddr AS address, eval('list(inV().inE()).size() / count(*)') AS inC, eval('list(inV().outE()).size() / count(*)') AS outC FROM Link WHERE tAddr IN [{string.Join(", ", addresses.Select(x => "'" + x + "'"))}] GROUP BY tAddr").ToDictionary(x => x.GetField<string>("address"), y => new int[] { (int)y.GetField<long>("inC"), (int)y.GetField<long>("outC") });
+                foreach (var address in addresses)
+                {
+                    var kvp = new KeyValuePair<string, int[]>(address, mainDB.Query($"SELECT avg(count), avg(count2) FROM (SELECT count(inE()), count(outE()) FROM (SELECT expand(inV) FROM (SELECT inV() FROM Link WHERE tAddr = '{address}' LIMIT 1000)) GROUP BY Hash)").Select(x => new int[] { (int)x.GetField<long>("avg"), (int)x.GetField<long>("avg2") }).First());
+                    try
+                    {
+                        _result.Add(kvp.Key, kvp.Value);
+                    }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine(address + " not in DB?");
+                    }
+                    Console.WriteLine(address + " done.");
+                }
             }
             sw.Stop();
             // DEBUG

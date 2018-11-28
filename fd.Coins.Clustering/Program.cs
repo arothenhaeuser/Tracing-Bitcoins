@@ -75,7 +75,7 @@ namespace fd.Coins.Clustering
 
         private static List<string> ReadGold()
         {
-            var file = File.ReadAllLines(@"F:\Data\cleaned_gold (sarah thibault misc tags).txt").Skip(40).Take(20);
+            var file = File.ReadAllLines(@"F:\Data\cleaned_gold (sarah thibault misc tags).txt").SkipWhile((x, i) => i < 20 || i > 200);
             return file.SelectMany(x => x.Split('\t')).Distinct().ToList();
         }
     }

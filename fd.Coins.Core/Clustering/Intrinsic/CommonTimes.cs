@@ -44,7 +44,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 foreach (var address in addresses)
                 {
-                    var kvp = mainDB.Query($"SELECT list($hour) as hour FROM Link LET $hour = outV().BlockTime.format('k').asLong() WHERE tAddr = '{address}'").Select(x => new KeyValuePair<string, int[]>(address, ToFeatureVector(x.GetField<List<long>>("hour")))).First();
+                    var kvp = mainDB.Query($"SELECT list($hour) as hour FROM (SELECT * FROM Link WHERE tAddr = '{address}' LIMIT 500) LET $hour = outV().BlockTime.format('k').asLong() ").Select(x => new KeyValuePair<string, int[]>(address, ToFeatureVector(x.GetField<List<long>>("hour")))).First();
 
                     try
                     {

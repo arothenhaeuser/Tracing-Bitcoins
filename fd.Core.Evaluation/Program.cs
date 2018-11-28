@@ -26,14 +26,20 @@ namespace fd.Coins.Evaluation
             sw.Start();
             for (var i = 0; i < evalConf.Clusters.Count(); i++)
             {
+                var score = double.Parse(File.ReadAllLines(evalConf.Clusters[i])[0].Replace("Dissimilarity:", ""));
+                if(score < 0.53 || score > 0.57)
+                {
+                    continue;
+                }
+
                 c1 = File.ReadAllLines(evalConf.Clusters[i]).Select(x => x.Trim().Split('\t').ToList()).ToList();
 
-                var ri = Evaluation.RandIndex(gold, c1);
+                var ri = 0;//Evaluation.RandIndex(gold, c1);
                 var ari = Evaluation.AdjustedRandIndex(gold, c1);
-                var acc = Evaluation.Accuracy(gold, c1);
-                var pre = Evaluation.Precision(gold, c1);
-                var rec = Evaluation.Recall(gold, c1);
-                var f1 = Evaluation.F1(gold, c1);
+                var acc = 0; //Evaluation.Accuracy(gold, c1);
+                var pre = 0; //Evaluation.Precision(gold, c1);
+                var rec = 0; //Evaluation.Recall(gold, c1);
+                var f1 = 0; //Evaluation.F1(gold, c1);
 
                 Console.WriteLine("RandIndex:\t\t" + ri);
                 Console.WriteLine("AdjustedRandIndex:\t" + ari);

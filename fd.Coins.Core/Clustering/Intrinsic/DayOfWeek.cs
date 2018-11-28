@@ -45,7 +45,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 foreach (var address in addresses)
                 {
-                    var kvp = mainDB.Query($"SELECT list($day) as day FROM Link LET $day = outV().BlockTime.format('E') WHERE tAddr = '{address}'").Select(x => new KeyValuePair<string, BitArray>(address, ToBitArray(x.GetField<List<string>>("day")))).First();
+                    var kvp = mainDB.Query($"SELECT list($day) as day FROM (SELECT * FROM Link WHERE tAddr = '{address}' LIMIT 500) LET $day = outV().BlockTime.format('E')").Select(x => new KeyValuePair<string, BitArray>(address, ToBitArray(x.GetField<List<string>>("day")))).First();
                     try
                     {
                         _result.Add(kvp.Key, kvp.Value);

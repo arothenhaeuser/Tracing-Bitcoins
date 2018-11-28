@@ -44,7 +44,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 foreach (var address in addresses)
                 {
-                    var record = mainDB.Query($"SELECT tx, list(tx.inE().tAddr) as source, list(tx.outE().tAddr) as target FROM (SELECT inV() as tx FROM Link WHERE tAddr = '{address}') WHERE tx.Coinbase = false AND tx.Unlinked = false GROUP BY tx").Select(x => new KeyValuePair<string, List<List<string>>>(x.GetField<ORID>("tx").ToString(), new List<List<string>>() { x.GetField<List<string>>("source"), x.GetField<List<string>>("target") })).First();
+                    var record = mainDB.Query($"SELECT $i as inputs, $o as outputs FROM (SELECT expand(inV) FROM (SELECT inV() FROM Link WHERE tAddr = '{address}' LIMIT 10000)) LET $i = set(inE().tAddr), $o = set(outE().tAddr) WHERE Coinbase = false").Select(x => new KeyValuePair<string, List<List<string>>>(x.GetField<ORID>("tx").ToString(), new List<List<string>>() { x.GetField<List<string>>("source"), x.GetField<List<string>>("target") })).First();
                     // DEBUG
                     Console.WriteLine("\tData retrieved.");
 

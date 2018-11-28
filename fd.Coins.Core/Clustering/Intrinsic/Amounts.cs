@@ -37,7 +37,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 foreach (var address in addresses)
                 {
-                    var kvp = mainDB.Query($"SELECT avg(amount).asLong() as total (SELECT * FROM Link WHERE tAddr = '{address}' LIMIT 500)").Select(x => new KeyValuePair<string, double>(address, (double)x.GetField<long>("total"))).First();
+                    var kvp = mainDB.Query($"SELECT avg(amount).asLong() as total FROM (SELECT * FROM Link WHERE tAddr = '{address}' LIMIT 500)").Select(x => new KeyValuePair<string, double>(address, (double)x.GetField<long>("total"))).First();
                     try
                     {
                         _result.Add(kvp.Key, kvp.Value);

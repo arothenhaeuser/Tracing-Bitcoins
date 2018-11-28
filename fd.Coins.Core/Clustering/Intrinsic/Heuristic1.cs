@@ -44,7 +44,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             {
                 foreach (var address in addresses)
                 {
-                    var groups = mainDB.Query($"SELECT inV().inE().tAddr AS address FROM Link WHERE tAddr = '{address}'").SelectMany(x => x.GetField<List<string>>("address")).Where(y => !string.IsNullOrEmpty(y)).Where(x => x.Count() > 1).Distinct().ToList();
+                    var groups = mainDB.Query($"SELECT inE().tAddr AS address FROM (SELECT expand(inV) FROM (SELECT inV() FROM Link WHERE tAddr = '{address}' LIMIT 10000))").SelectMany(x => x.GetField<List<string>>("address")).Where(y => !string.IsNullOrEmpty(y)).Where(x => x.Count() > 1).Distinct().ToList();
                     try
                     {
                         inGroups.Add(groups);

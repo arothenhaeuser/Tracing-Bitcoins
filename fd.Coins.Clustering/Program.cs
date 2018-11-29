@@ -49,7 +49,7 @@ namespace fd.Coins.Clustering
             Console.WriteLine("Clustering...");
             var sw = new Stopwatch();
             sw.Start();
-            var metric = new AddressDissimilarityMetric(algoPipe);
+            var metric = new AddressDissimilarityMetric(algoPipe, addresses);
             var linkage = new AverageLinkage<string>(metric);
             var algorithm = new AgglomerativeClusteringAlgorithm<string>(linkage);
 
@@ -75,7 +75,7 @@ namespace fd.Coins.Clustering
 
         private static List<string> ReadGold()
         {
-            var file = File.ReadAllLines(@"F:\Data\cleaned_gold (sarah thibault misc tags).txt").SkipWhile((x, i) => i < 20 || i > 200);
+            var file = File.ReadAllLines(@"E:\Data\cleaned_gold (sarah thibault misc tags).txt").Take(1);
             return file.SelectMany(x => x.Split('\t')).Distinct().ToList();
         }
     }

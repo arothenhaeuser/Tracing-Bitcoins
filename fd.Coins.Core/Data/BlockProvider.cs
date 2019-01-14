@@ -2,7 +2,6 @@
 using NBitcoin.Protocol;
 using Orient.Client;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,6 +11,8 @@ namespace fd.Coins.Core.NetworkConnector
     public class BlockProvider
     {
         private bool _disposed;
+        public Task Linking { get; private set; }
+        public Task Loading { get; private set; }
 
         private BitcoinNetworkConnector _network;
         private Node _localClient;
@@ -39,32 +40,57 @@ namespace fd.Coins.Core.NetworkConnector
             Connect();
         }
 
+        public void Start()
+        {
+            CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
+            Linking = Task.Run(() =>
+            {
+                PeriodicLinkData();
+            });
+            Loading = Task.Run(() =>
+            {
+                PeriodicLoadData();
+            });
+        }
 
-        private async void PeriodicReport()
+        private async void PeriodicLoadData()
         {
             while (!_disposed)
             {
-                Save();
-                Console.Clear();
-                Console.WriteLine(_height);
-                await Task.Delay(10000);
+                Console.WriteLine("Ping");
+                // get new blocks
+                if (_network.CurrentHeight > _height)
+                {
+                    var hashes =
+                        _network.BlockChain
+                        .ToEnumerable(false)
+                        .Skip(_height)
+                        .Take(50000)
+                        .Select(x => x.HashBlock);
+                    foreach (var block in _localClient.GetBlocks(hashes))
+                    {
+                        if (ProcessBlock(block))
+                        {
+                            _height++;
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException($"Processing of block failed. ({block.GetHash()})");
+                        }
+                    }
+                }
+                await Task.Delay(60000);
             }
-            Console.Clear();
-        }
-        private bool IsCoinbaseTx(ODocument node)
-        {
-            return node.GetField<bool>("Coinbase");
         }
 
         private async void PeriodicLinkData()
         {
             while (!_disposed)
             {
+                Console.Clear();
                 using (var db = new ODatabase("localhost", 2424, "txgraph", ODatabaseType.Graph, "admin", "admin"))
                 {
-                    var prioHashes = File.ReadAllLines(@"").Where(x => x.Length == 64).Distinct().ToList();
-                    var nodes = db.Query<OVertex>($"SELECT * FROM (SELECT * FROM Transaction WHERE Hash IN [{string.Join(",", prioHashes.Select(x => $"'{x}'"))}]) WHERE Unlinked = true LIMIT 100000");
-                    //var nodes = db.Select().From("Transaction").Where("Unlinked").Equals(true).Limit(50000).ToList<OVertex>();
+                    var nodes = db.Query<OVertex>($"SELECT * FROM Transaction WHERE Unlinked = true LIMIT 100000");
                     foreach (var node in nodes)
                     {
                         var transaction = db.Transaction;
@@ -73,7 +99,6 @@ namespace fd.Coins.Core.NetworkConnector
                             node.SetField("Unlinked", false);
                             transaction.AddOrUpdate(node);
                             transaction.Commit();
-                            //db.Command($"UPDATE {node.ORID} SET Unlinked = False");
                             continue;
                         }
                         try
@@ -115,56 +140,6 @@ namespace fd.Coins.Core.NetworkConnector
             }
         }
 
-        private int GetInputCount(ODocument node)
-        {
-            var c = 0;
-            var tmp = new object();
-            while (node.TryGetValue($"INPUT{c}", out tmp))
-            {
-                c++;
-            }
-            return c;
-        }
-
-        private int GetOutputCount(ODocument node)
-        {
-            var c = 0;
-            var tmp = new object();
-            while (node.TryGetValue($"OUTPUT{c}", out tmp))
-            {
-                c++;
-            }
-            return c;
-        }
-
-        private async void PeriodicLoadData()
-        {
-            while (!_disposed)
-            {
-                // get new blocks
-                if (_network.CurrentHeight > _height)
-                {
-                    var hashes =
-                        _network.BlockChain
-                        .ToEnumerable(false)
-                        .Skip(_height)
-                        .Take(50000)
-                        .Select(x => x.HashBlock);
-                    foreach (var block in _localClient.GetBlocks(hashes))
-                    {
-                        if (ProcessBlock(block))
-                        {
-                            _height++;
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException($"Processing of block failed. ({block.GetHash()})");
-                        }
-                    }
-                }
-                await Task.Delay(60000);
-            }
-        }
         private bool ProcessBlock(Block block)
         {
             var blockTime = block.Header.BlockTime.LocalDateTime;
@@ -208,91 +183,6 @@ namespace fd.Coins.Core.NetworkConnector
             return true;
         }
 
-        public OVertex AddVertex(Transaction tx, DateTime blockTime, ODatabase db)
-        {
-            var vertex = new OVertex() { OClassName = "Transaction" };
-            vertex.SetField("Hash", tx.GetHash().ToString());
-            vertex.SetField("BlockTime", blockTime);
-            vertex.SetField("Coinbase", tx.IsCoinBase);
-            for (var i = 0; i < tx.Inputs.Count; i++)
-            {
-                var input = tx.Inputs[i];
-                vertex.SetField($"INPUT{i}", $"{input.PrevOut.Hash}:{input.PrevOut.N}");
-            }
-            for (var i = 0; i < tx.Outputs.Count; i++)
-            {
-                var output = tx.Outputs[i];
-                vertex.SetField($"OUTPUT{i}", $"{i}:{GetAddress(output.ScriptPubKey)}:{output.Value.Satoshi}");
-            }
-
-            db.Insert(vertex).Run();
-            return vertex;
-        }
-
-        public string GetAddress(Script scriptPubKey)
-        {
-            var add = scriptPubKey.GetDestinationAddress(Network.Main)?.ToString();
-            if (string.IsNullOrEmpty(add))
-            {
-                var keys = scriptPubKey.GetDestinationPublicKeys();
-                add = string.Join(",", keys.Select(x => x.GetAddress(Network.Main)));
-            }
-            return add;
-        }
-
-        public IEnumerable<Block> GetBlocks(int fromHeight, int toHeight)
-        {
-            while (_network.CurrentHeight < toHeight)
-            {
-                Task.Delay(1000);
-            }
-            var hashes = _network.BlockChain.ToEnumerable(false).Skip(fromHeight).Take(toHeight - fromHeight).Select(x => x.HashBlock);
-            return _localClient.GetBlocks(hashes);
-        }
-
-        private void Connect()
-        {
-            try
-            {
-                _network.Connect();
-                _localClient = Node.ConnectToLocal(Network.Main, new NodeConnectionParameters());
-                _localClient.VersionHandshake();
-            }
-            catch (Exception e)
-            {
-                Error(e);
-            }
-        }
-
-        private void Save()
-        {
-            File.WriteAllText("state.log", _height.ToString());
-        }
-
-        public void Start()
-        {
-            CreateDatabaseIfNotExists("localhost", 2424, "root", "root", "txgraph");
-            PeriodicReport();
-            Task.Run(() =>
-            {
-                PeriodicLinkData();
-            });
-            PeriodicLoadData();
-        }
-
-        public void Stop()
-        {
-            _disposed = true;
-            if (_network.ConnectedNodes != 0)
-            {
-                _network.Disconnect();
-            }
-            if (_localClient.IsConnected)
-            {
-                _localClient.Disconnect();
-            }
-            Save();
-        }
         private bool CreateDatabaseIfNotExists(string hostname, int port, string user, string password, string database)
         {
             using (var server = new OServer(hostname, port, user, password))
@@ -324,6 +214,69 @@ namespace fd.Coins.Core.NetworkConnector
                     return true;
                 }
             }
+        }
+
+        private bool IsCoinbaseTx(ODocument node)
+        {
+            return node.GetField<bool>("Coinbase");
+        }
+
+        private int GetInputCount(ODocument node)
+        {
+            var c = 0;
+            var tmp = new object();
+            while (node.TryGetValue($"INPUT{c}", out tmp))
+            {
+                c++;
+            }
+            return c;
+        }
+
+        public string GetAddress(Script scriptPubKey)
+        {
+            var add = scriptPubKey.GetDestinationAddress(Network.Main)?.ToString();
+            if (string.IsNullOrEmpty(add))
+            {
+                var keys = scriptPubKey.GetDestinationPublicKeys();
+                add = string.Join(",", keys.Select(x => x.GetAddress(Network.Main)));
+            }
+            return add;
+        }
+
+        private void Connect()
+        {
+            try
+            {
+                _network.Connect();
+                _localClient = Node.ConnectToLocal(Network.Main, new NodeConnectionParameters());
+                _localClient.VersionHandshake();
+            }
+            catch (Exception e)
+            {
+                Error(e);
+            }
+        }
+
+        private void Save()
+        {
+            File.WriteAllText("state.log", _height.ToString());
+        }
+
+        public void Stop()
+        {
+            _disposed = true;
+            Linking.Wait();
+            Loading.Wait();
+            try {
+                _network.Disconnect();
+            }
+            catch { }
+            try
+            {
+                _localClient.Disconnect();
+            }
+            catch { }
+            Save();
         }
 
         private void Error(Exception e)

@@ -6,7 +6,7 @@ using System.Reflection;
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 
-namespace fd.Coins.Core.Clustering.Intrinsic
+namespace fd.Coins.Core.Clustering.FeatureExtractors
 {
     /// <summary>
     /// Feature Extractor: Extracts the social network from transactions.
@@ -16,7 +16,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
     ///         B   ->  XXXX   ->  D
     /// feat:   [B][C,D]
     /// </summary>
-    public class SocialNetwork : Clustering
+    public class SocialNetwork : Extractor
     {
         private Dictionary<string, List<string>> _result;
 
@@ -37,16 +37,11 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
-            var sw = new Stopwatch();
-            sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
                 foreach (var address in addresses)
                 {
                     var kvp = new KeyValuePair<string, List<string>>(address, mainDB.Query($"SELECT set(network) as network FROM (SELECT unionAll($a, $b, $c) as network FROM Link LET $a = inV().inE().tAddr, $b = inV().outE().tAddr, $c = outV().inE().tAddr WHERE tAddr = '{address}' LIMIT 10)").First().GetField<List<string>>("network"));
-                    //var kvp = mainDB.Query($"SELECT list(outV().inE().tAddr) AS payers, list(inv().outE().tAddr) AS payees FROM Link WHERE tAddr = '{address}'").Select(x => new KeyValuePair<string, List<string>>(address, x.GetField<List<string>>("payers").Union(x.GetField<List<string>>("payees")).ToList())).First();
                     try
                     {
                         _result.Add(kvp.Key, kvp.Value);
@@ -58,9 +53,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                     Console.WriteLine(address + " done.");
                 }
             }
-            sw.Stop();
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
         }
     }
 }

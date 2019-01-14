@@ -7,14 +7,14 @@ namespace fd.Coins.Clustering
 {
     public class Pipeline
     {
-        List<Core.Clustering.Clustering> _algos;
+        List<Core.Clustering.Extractor> _algos;
 
         public Pipeline()
         {
-            _algos = new List<Core.Clustering.Clustering>();
+            _algos = new List<Core.Clustering.Extractor>();
         }
 
-        public void Add(Core.Clustering.Clustering algo)
+        public void Add(Core.Clustering.Extractor algo)
         {
             _algos.Add(algo);
         }

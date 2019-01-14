@@ -73,18 +73,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Clustering\Clustering.cs" />
+    <Compile Include="Clustering\Extractor.cs" />
     <Compile Include="Clustering\ClusteringCollapser.cs" />
-    <Compile Include="Clustering\Intrinsic\Amounts.cs" />
-    <Compile Include="Clustering\Intrinsic\CommonTimes.cs" />
-    <Compile Include="Clustering\Intrinsic\DayOfWeek.cs" />
-    <Compile Include="Clustering\Intrinsic\Heuristic1.cs" />
-    <Compile Include="Clustering\Intrinsic\Heuristic2.cs" />
-    <Compile Include="Clustering\Intrinsic\SocialNetwork.cs" />
-    <Compile Include="Clustering\Intrinsic\TimeSlots.cs" />
-    <Compile Include="Clustering\Intrinsic\TotalAmounts.cs" />
-    <Compile Include="Clustering\Intrinsic\TransactionShape.cs" />
-    <Compile Include="Extensions.cs" />
+    <Compile Include="Clustering\FeatureExtractors\Amounts.cs" />
+    <Compile Include="Clustering\FeatureExtractors\CommonTimes.cs" />
+    <Compile Include="Clustering\FeatureExtractors\DayOfWeek.cs" />
+    <Compile Include="Clustering\FeatureExtractors\Heuristic1.cs" />
+    <Compile Include="Clustering\FeatureExtractors\Heuristic2.cs" />
+    <Compile Include="Clustering\FeatureExtractors\SocialNetwork.cs" />
+    <Compile Include="Clustering\FeatureExtractors\TimeSlots.cs" />
+    <Compile Include="Clustering\FeatureExtractors\TotalAmounts.cs" />
+    <Compile Include="Clustering\FeatureExtractors\TransactionShape.cs" />
     <Compile Include="Network\BitcoinNetworkConnector.cs" />
     <Compile Include="Data\BlockProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -93,12 +92,6 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
-    <Compile Include="Data\IRepository.cs" />
-    <Compile Include="Data\TransactionEntity.cs" />
-    <Compile Include="Data\TxInput.cs" />
-    <Compile Include="Data\TxOutput.cs" />
-    <Compile Include="Data\WhereBuilder.cs" />
-    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config">

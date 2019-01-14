@@ -1,11 +1,10 @@
 ﻿using Aglomera;
 using Aglomera.Linkage;
-using fd.Coins.Core.Clustering.Intrinsic;
+using fd.Coins.Core.Clustering.FeatureExtractors;
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -33,22 +32,16 @@ namespace fd.Coins.Clustering
             algoPipe.Add(new Amounts());
             algoPipe.Add(new SocialNetwork());
             algoPipe.Add(new TimeSlots());
-            algoPipe.Add(new Core.Clustering.Intrinsic.DayOfWeek());
+            algoPipe.Add(new Core.Clustering.FeatureExtractors.DayOfWeek());
             algoPipe.Add(new TransactionShape());
             algoPipe.Add(new CommonTimes());
             algoPipe.Add(new Heuristic1());
             algoPipe.Add(new Heuristic2());
 
-
             algoPipe.Process(txgraphOptions, addresses);
             // DEBUG
             Console.WriteLine("Processing of addresses done.");
 
-
-            // DEBUG
-            Console.WriteLine("Clustering...");
-            var sw = new Stopwatch();
-            sw.Start();
             var metric = new AddressDissimilarityMetric(algoPipe, addresses);
             var linkage = new AverageLinkage<string>(metric);
             var algorithm = new AgglomerativeClusteringAlgorithm<string>(linkage);
@@ -66,16 +59,11 @@ namespace fd.Coins.Clustering
                 Directory.CreateDirectory("report");
                 File.WriteAllText(Path.Combine("report", $"{index++}.txt".Replace(",", "#")), sb.ToString());
             }
-            sw.Stop();
-            // DEBUG
-            Console.WriteLine($"Clustering done. {sw.Elapsed}");
-
-            Console.Read();
         }
 
         private static List<string> ReadGold()
         {
-            var file = File.ReadAllLines(@"E:\Data\cleaned_gold (sarah thibault misc tags).txt").Take(1);
+            var file = File.ReadAllLines(@"D:\Source\Repos\CurrentVersion\shuffled_cleaned_gold (sarah thibault misc tags).txt").Take(130);
             return file.SelectMany(x => x.Split('\t')).Distinct().ToList();
         }
     }

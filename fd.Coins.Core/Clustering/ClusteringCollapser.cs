@@ -3,6 +3,9 @@ using System.Linq;
 
 namespace fd.Coins.Core.Clustering
 {
+    /// <summary>
+    /// Collapses lists with overlapping entries. [a,b,c];[i;j;k];[a,y,z] -> [a,b,c,y,z];[i,j,k];
+    /// </summary>
     public class ClusteringCollapser
     {
         private Dictionary<string, int> _inventory;

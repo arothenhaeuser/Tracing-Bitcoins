@@ -2,13 +2,11 @@
 using OrientDB_Net.binary.Innov8tive.API;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 
-namespace fd.Coins.Core.Clustering.Intrinsic
+namespace fd.Coins.Core.Clustering.FeatureExtractors
 {
-    public class TotalAmounts : Clustering
+    public class TotalAmounts : Extractor
     {
         private Dictionary<string, double> _result;
 
@@ -29,10 +27,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
-            var sw = new Stopwatch();
-            sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
                 foreach(var address in addresses)
@@ -47,27 +41,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                         Console.WriteLine(address + " not in DB?");
                     }
                     Console.WriteLine(address + " done.");
-                }
-            }
-            sw.Stop();
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
-        }
-
-        private void AddToResult(Dictionary<long, List<string>> query)
-        {
-            foreach (var kvp in query)
-            {
-                foreach (var address in kvp.Value)
-                {
-                    try
-                    {
-                        _result.Add(address, kvp.Key);
-                    }
-                    catch (ArgumentException)
-                    {
-                        _result[address] = (_result[address] + kvp.Key) / 2;
-                    }
                 }
             }
         }

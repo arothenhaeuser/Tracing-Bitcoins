@@ -1,12 +1,13 @@
 ﻿using fd.Coins.Core.NetworkConnector;
-using NBitcoin;
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace fd.Coins.Cli
 {
+    /// <summary>
+    /// Runs an instance of the BlockProvider to fill database.
+    /// </summary>
     class Program
     {
         static void Main(string[] args)

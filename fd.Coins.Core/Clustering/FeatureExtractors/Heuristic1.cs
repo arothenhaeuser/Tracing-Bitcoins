@@ -6,10 +6,10 @@ using System.Reflection;
 using Orient.Client;
 using OrientDB_Net.binary.Innov8tive.API;
 
-namespace fd.Coins.Core.Clustering.Intrinsic
+namespace fd.Coins.Core.Clustering.FeatureExtractors
 {
     // heuristic #1: all addresses that are input to the same transaction are considered to belong to the same owner
-    public class Heuristic1 : Clustering
+    public class Heuristic1 : Extractor
     {
         private List<List<string>> _result;
         private ConnectionOptions _options;
@@ -35,10 +35,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
-            var sw = new Stopwatch();
-            sw.Start();
             var inGroups = new List<List<string>>();
             using (var mainDB = new ODatabase(mainOptions))
             {
@@ -59,15 +55,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
             var cc = new ClusteringCollapser();
             cc.Collapse(inGroups);
             _result = cc.Clustering;
-            sw.Stop();
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
-        }
-
-        private List<string> Sort(List<string> items)
-        {
-            items.Sort();
-            return items;
         }
     }
 }

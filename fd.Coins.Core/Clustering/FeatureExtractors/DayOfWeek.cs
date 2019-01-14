@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
-namespace fd.Coins.Core.Clustering.Intrinsic
+namespace fd.Coins.Core.Clustering.FeatureExtractors
 {
     /// <summary>
     /// Feature Extractor: Extracts the day of the week from the BlockTime. (2018-01-01 12:34:56 -> Mo)
@@ -16,7 +16,7 @@ namespace fd.Coins.Core.Clustering.Intrinsic
     /// dotw:   0   1   2   3   4   5   6   7
     /// feat:   0   0   0   1   0   0   0   1
     /// </summary>
-    public class DayOfWeek : Clustering
+    public class DayOfWeek : Extractor
     {
         private Dictionary<string, BitArray> _result;
 
@@ -37,10 +37,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
 
         public override void Run(ConnectionOptions mainOptions, IEnumerable<string> addresses)
         {
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} running...");
-            var sw = new Stopwatch();
-            sw.Start();
             using (var mainDB = new ODatabase(mainOptions))
             {
                 foreach (var address in addresses)
@@ -57,9 +53,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                     Console.WriteLine(address + " done.");
                 }
             }
-            sw.Stop();
-            // DEBUG
-            Console.WriteLine($"{GetType().Name}.{MethodBase.GetCurrentMethod().Name} done. {sw.Elapsed}");
         }
 
         private BitArray ToBitArray(List<string> list)
@@ -71,29 +64,6 @@ namespace fd.Coins.Core.Clustering.Intrinsic
                 ret.Set(ToInt(value), true);
             }
             return ret;
-        }
-
-        private void AddToResult(Dictionary<string, List<string>> query)
-        {
-            foreach (var kvp in query)
-            {
-                foreach (var address in kvp.Value)
-                {
-                    if (!string.IsNullOrEmpty(address))
-                    {
-                        var slots = new BitArray(7);
-                        slots.Set(ToInt(kvp.Key), true);
-                        try
-                        {
-                            _result.Add(address, slots);
-                        }
-                        catch (ArgumentException)
-                        {
-                            _result[address] = _result[address].Or(slots);
-                        }
-                    }
-                }
-            }
         }
 
         private int ToInt(string dayOfMonth)
